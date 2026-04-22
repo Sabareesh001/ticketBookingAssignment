@@ -1,0 +1,268 @@
+using Microsoft.EntityFrameworkCore;
+using BusBookingAPI.Models;
+using Route = BusBookingAPI.Models.Route;
+
+namespace BusBookingAPI.Data
+{
+    public class BusBookingDbContext : DbContext
+    {
+        public BusBookingDbContext(DbContextOptions<BusBookingDbContext> options) : base(options)
+        {
+        }
+
+        public DbSet<User> Users { get; set; }
+        public DbSet<State> States { get; set; }
+        public DbSet<District> Districts { get; set; }
+        public DbSet<Location> Locations { get; set; }
+        public DbSet<Route> Routes { get; set; }
+        public DbSet<BusOperator> BusOperators { get; set; }
+        public DbSet<Bus> Buses { get; set; }
+        public DbSet<Booking> Bookings { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // User configuration
+            modelBuilder.Entity<User>()
+                .ToTable("users");
+            modelBuilder.Entity<User>()
+                .HasKey(u => u.Id);
+            modelBuilder.Entity<User>()
+                .Property(u => u.Id).HasColumnName("id");
+            modelBuilder.Entity<User>()
+                .Property(u => u.FullName).HasColumnName("full_name");
+            modelBuilder.Entity<User>()
+                .Property(u => u.Email).HasColumnName("email");
+            modelBuilder.Entity<User>()
+                .Property(u => u.PhoneNumber).HasColumnName("phone_number");
+            modelBuilder.Entity<User>()
+                .Property(u => u.PasswordHash).HasColumnName("password_hash");
+            modelBuilder.Entity<User>()
+                .Property(u => u.DateOfBirth).HasColumnName("date_of_birth");
+            modelBuilder.Entity<User>()
+                .Property(u => u.Address).HasColumnName("address");
+            modelBuilder.Entity<User>()
+                .Property(u => u.IsActive).HasColumnName("is_active");
+            modelBuilder.Entity<User>()
+                .Property(u => u.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<User>()
+                .Property(u => u.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
+            // State configuration
+            modelBuilder.Entity<State>()
+                .ToTable("states");
+            modelBuilder.Entity<State>()
+                .HasKey(s => s.Id);
+            modelBuilder.Entity<State>()
+                .Property(s => s.Id).HasColumnName("id");
+            modelBuilder.Entity<State>()
+                .Property(s => s.StateName).HasColumnName("state_name");
+            modelBuilder.Entity<State>()
+                .Property(s => s.Country).HasColumnName("country");
+            modelBuilder.Entity<State>()
+                .Property(s => s.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<State>()
+                .HasIndex(s => s.StateName)
+                .IsUnique();
+
+            // District configuration
+            modelBuilder.Entity<District>()
+                .ToTable("districts");
+            modelBuilder.Entity<District>()
+                .HasKey(d => d.Id);
+            modelBuilder.Entity<District>()
+                .Property(d => d.Id).HasColumnName("id");
+            modelBuilder.Entity<District>()
+                .Property(d => d.DistrictName).HasColumnName("district_name");
+            modelBuilder.Entity<District>()
+                .Property(d => d.StateId).HasColumnName("state_id");
+            modelBuilder.Entity<District>()
+                .Property(d => d.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<District>()
+                .HasOne(d => d.State)
+                .WithMany(s => s.Districts)
+                .HasForeignKey(d => d.StateId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<District>()
+                .HasIndex(d => new { d.DistrictName, d.StateId })
+                .IsUnique();
+
+            // Location configuration
+            modelBuilder.Entity<Location>()
+                .ToTable("locations");
+            modelBuilder.Entity<Location>()
+                .HasKey(l => l.Id);
+            modelBuilder.Entity<Location>()
+                .Property(l => l.Id).HasColumnName("id");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.StreetAddress).HasColumnName("street_address");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.DistrictId).HasColumnName("district_id");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.City).HasColumnName("city");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.StateId).HasColumnName("state_id");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.Country).HasColumnName("country");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.PostalCode).HasColumnName("postal_code");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.Latitude).HasColumnName("latitude");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.Longitude).HasColumnName("longitude");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<Location>()
+                .HasOne(l => l.District)
+                .WithMany(d => d.Locations)
+                .HasForeignKey(l => l.DistrictId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Location>()
+                .HasOne(l => l.State)
+                .WithMany(s => s.Locations)
+                .HasForeignKey(l => l.StateId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Route configuration
+            modelBuilder.Entity<Route>()
+                .ToTable("routes");
+            modelBuilder.Entity<Route>()
+                .HasKey(r => r.Id);
+            modelBuilder.Entity<Route>()
+                .Property(r => r.Id).HasColumnName("id");
+            modelBuilder.Entity<Route>()
+                .Property(r => r.SourceLocationId).HasColumnName("source_location_id");
+            modelBuilder.Entity<Route>()
+                .Property(r => r.DestinationLocationId).HasColumnName("destination_location_id");
+            modelBuilder.Entity<Route>()
+                .Property(r => r.DistanceKm).HasColumnName("distance_km");
+            modelBuilder.Entity<Route>()
+                .Property(r => r.EstimatedDurationHours).HasColumnName("estimated_duration_hours");
+            modelBuilder.Entity<Route>()
+                .Property(r => r.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<Route>()
+                .Property(r => r.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<Route>()
+                .HasOne(r => r.SourceLocation)
+                .WithMany(l => l.SourceRoutes)
+                .HasForeignKey(r => r.SourceLocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Route>()
+                .HasOne(r => r.DestinationLocation)
+                .WithMany(l => l.DestinationRoutes)
+                .HasForeignKey(r => r.DestinationLocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // BusOperator configuration
+            modelBuilder.Entity<BusOperator>()
+                .ToTable("bus_operators");
+            modelBuilder.Entity<BusOperator>()
+                .HasKey(bo => bo.Id);
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.Id).HasColumnName("id");
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.OperatorName).HasColumnName("operator_name");
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.Email).HasColumnName("email");
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.PhoneNumber).HasColumnName("phone_number");
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.LicenseNumber).HasColumnName("license_number");
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.Address).HasColumnName("address");
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.IsActive).HasColumnName("is_active");
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.PasswordHash).HasColumnName("password_hash");
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<BusOperator>()
+                .Property(bo => bo.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<BusOperator>()
+                .HasIndex(bo => bo.Email)
+                .IsUnique();
+            modelBuilder.Entity<BusOperator>()
+                .HasIndex(bo => bo.LicenseNumber)
+                .IsUnique();
+
+            // Bus configuration
+            modelBuilder.Entity<Bus>()
+                .ToTable("buses");
+            modelBuilder.Entity<Bus>()
+                .HasKey(b => b.Id);
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.Id).HasColumnName("id");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.RegistrationNumber).HasColumnName("registration_number");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.OperatorId).HasColumnName("operator_id");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.RouteId).HasColumnName("route_id");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.SeatingCapacity).HasColumnName("seating_capacity");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.IsActive).HasColumnName("is_active");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<Bus>()
+                .HasIndex(b => b.RegistrationNumber)
+                .IsUnique();
+            modelBuilder.Entity<Bus>()
+                .HasOne(b => b.Operator)
+                .WithMany(bo => bo.Buses)
+                .HasForeignKey(b => b.OperatorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Bus>()
+                .HasOne(b => b.Route)
+                .WithMany(r => r.Buses)
+                .HasForeignKey(b => b.RouteId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Booking configuration
+            modelBuilder.Entity<Booking>()
+                .ToTable("bookings");
+            modelBuilder.Entity<Booking>()
+                .HasKey(b => b.Id);
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.Id).HasColumnName("id");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.UserId).HasColumnName("user_id");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.BusId).HasColumnName("bus_id");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.BookingDate).HasColumnName("booking_date");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.TravelDate).HasColumnName("travel_date");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.SeatNumbers).HasColumnName("seat_numbers");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.TotalFare).HasColumnName("total_fare");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.BookingStatus).HasColumnName("booking_status");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.PaymentStatus).HasColumnName("payment_status");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.User)
+                .WithMany(u => u.Bookings)
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.Bus)
+                .WithMany(bu => bu.Bookings)
+                .HasForeignKey(b => b.BusId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+}
