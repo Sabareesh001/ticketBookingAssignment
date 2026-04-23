@@ -130,13 +130,18 @@
         <button class="back-btn" (click)="clearSearch()">← Back to Search</button>
       </div>
 
+      <!-- Loading State -->
+      <div *ngIf="searchInProgress" class="loading-state">
+        <p>Searching for buses...</p>
+      </div>
+
       <!-- No Results Message -->
       <div *ngIf="searchResults.length === 0 && !searchInProgress" class="no-results">
         <p>{{ errorMessage || 'No buses found for this route' }}</p>
       </div>
 
       <!-- Bus Results List -->
-      <div *ngIf="searchResults.length > 0" class="buses-list">
+      <div *ngIf="searchResults.length > 0 && !searchInProgress" class="buses-list">
         <div *ngFor="let bus of searchResults" class="bus-card">
           <div class="bus-header">
             <div class="bus-info">

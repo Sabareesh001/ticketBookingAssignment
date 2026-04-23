@@ -23,9 +23,9 @@ export interface BusDto {
 }
 
 export interface AvailableBusesResponse {
-  success: boolean;
-  message: string;
-  buses: BusDto[];
+  Success: boolean;
+  Message: string;
+  Buses: BusDto[];
 }
 
 @Injectable({
@@ -36,10 +36,10 @@ export class BusService {
 
   constructor(private http: HttpClient) {}
 
-  getAvailableBuses(sourceDistrict: string, destinationDistrict: string): Observable<AvailableBusesResponse> {
-    return this.http.get<AvailableBusesResponse>(
-      `${this.apiUrl}/bus/available?sourceDistrict=${sourceDistrict}&destinationDistrict=${destinationDistrict}`
-    ).pipe(
+  getAvailableBuses(sourceDistrict: string, destinationDistrict: string): Observable<any> {
+    const url = `${this.apiUrl}/bus/available?sourceDistrict=${sourceDistrict}&destinationDistrict=${destinationDistrict}`;
+    
+    return this.http.get<any>(url).pipe(
       catchError(error => this.handleError(error))
     );
   }

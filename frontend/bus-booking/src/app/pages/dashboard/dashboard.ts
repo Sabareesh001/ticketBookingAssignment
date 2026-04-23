@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -58,7 +58,9 @@ export class Dashboard implements OnInit {
     private locationService: LocationService,
     private busService: BusService,
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit() {
@@ -190,24 +192,32 @@ export class Dashboard implements OnInit {
     }
 
     this.errorMessage = '';
-    this.searchCriteria.sourceDistrict = this.selectedFromDistrict;
-    this.searchCriteria.destinationDistrict = this.selectedToDistrict;
-
     this.searchInProgress = true;
+    this.hasSearched = true;
+    this.searchResults = [];
+    
     this.busService.getAvailableBuses(this.selectedFromDistrict, this.selectedToDistrict).subscribe({
-      next: (response) => {
-        this.searchResults = response.buses;
-        this.hasSearched = true;
+      next: (response: any) => {
+        const buses = response.Buses || response.buses || [];
+        const success = response.Success !== undefined ? response.Success : response.success;
+        const message = response.Message || response.message || 'No buses found for this route';
+        
+        this.searchResults = buses;
         this.searchInProgress = false;
         
-        if (!response.success || this.searchResults.length === 0) {
-          this.errorMessage = response.message || 'No buses found for this route';
+        if (!success || buses.length === 0) {
+          this.errorMessage = message;
+        } else {
+          this.errorMessage = '';
         }
+        
+        this.cdr.detectChanges();
       },
-      error: (error) => {
+      error: (error: any) => {
         this.errorMessage = 'Failed to search buses: ' + error.message;
+        this.searchResults = [];
         this.searchInProgress = false;
-        this.hasSearched = true;
+        this.cdr.detectChanges();
       }
     });
   }

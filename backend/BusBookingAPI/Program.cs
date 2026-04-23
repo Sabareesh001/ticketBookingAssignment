@@ -45,7 +45,11 @@ public class Program
         builder.Services.AddDbContext<BusBookingDbContext>(options =>
             options.UseNpgsql(finalConnectionString));
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            });
         builder.Services.AddAuthorization();
 
         // JWT Configuration
