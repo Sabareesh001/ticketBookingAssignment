@@ -10,6 +10,7 @@ namespace BusBookingAPI.DTOs
         public int SourceLocationId { get; set; }
         public int DestinationLocationId { get; set; }
         public int? SeatingCapacity { get; set; }
+        public decimal Price { get; set; }
         public bool IsActive { get; set; }
         public string SourceCity { get; set; }
         public string DestinationCity { get; set; }
@@ -27,6 +28,7 @@ namespace BusBookingAPI.DTOs
         public int SourceLocationId { get; set; }
         public int DestinationLocationId { get; set; }
         public int? SeatingCapacity { get; set; }
+        public decimal Price { get; set; }
     }
 
     public class UpdateBusDto
@@ -37,6 +39,7 @@ namespace BusBookingAPI.DTOs
         public int SourceLocationId { get; set; }
         public int DestinationLocationId { get; set; }
         public int? SeatingCapacity { get; set; }
+        public decimal Price { get; set; }
         public bool IsActive { get; set; }
     }
 }

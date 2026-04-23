@@ -249,6 +249,8 @@ namespace BusBookingAPI.Data
             modelBuilder.Entity<Bus>()
                 .Property(b => b.SeatingCapacity).HasColumnName("seating_capacity");
             modelBuilder.Entity<Bus>()
+                .Property(b => b.Price).HasColumnName("price");
+            modelBuilder.Entity<Bus>()
                 .Property(b => b.IsActive).HasColumnName("is_active");
             modelBuilder.Entity<Bus>()
                 .Property(b => b.CreatedAt).HasColumnName("created_at");
@@ -301,6 +303,8 @@ namespace BusBookingAPI.Data
                 .Property(b => b.BookingStatus).HasColumnName("booking_status");
             modelBuilder.Entity<Booking>()
                 .Property(b => b.PaymentStatus).HasColumnName("payment_status");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.TravelStatus).HasColumnName("travel_status");
             modelBuilder.Entity<Booking>()
                 .Property(b => b.CreatedAt).HasColumnName("created_at");
             modelBuilder.Entity<Booking>()

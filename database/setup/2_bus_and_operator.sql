@@ -27,6 +27,7 @@
         source_location_id INT NOT NULL,
         destination_location_id INT NOT NULL,
         seating_capacity INT,
+        price DECIMAL(10, 2) DEFAULT 500.00,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

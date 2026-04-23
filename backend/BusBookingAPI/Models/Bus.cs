@@ -9,6 +9,7 @@ namespace BusBookingAPI.Models
         public int SourceLocationId { get; set; }
         public int DestinationLocationId { get; set; }
         public int? SeatingCapacity { get; set; }
+        public decimal Price { get; set; } = 500.00m;
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

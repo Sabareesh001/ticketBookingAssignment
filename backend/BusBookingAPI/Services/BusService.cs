@@ -208,7 +208,7 @@ namespace BusBookingAPI.Services
             }
 
             // Check if bus has active bookings
-            var hasActiveBookings = await _context.Bookings.AnyAsync(booking => booking.BusId == id);
+            var hasActiveBookings = await _context.Bookings.AnyAsync(booking => booking.BusId == id && booking.TravelStatus == "active");
             if (hasActiveBookings)
             {
                 throw new InvalidOperationException($"Cannot delete bus with ID {id} because it has active bookings");

@@ -11,11 +11,13 @@ CREATE TABLE IF NOT EXISTS bookings (
     payment_status VARCHAR(50) DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    travel_status VARCHAR(20) DEFAULT 'active',
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     FOREIGN KEY (bus_id) REFERENCES buses(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CHECK (travel_date >= CURRENT_DATE),
     CHECK (booking_status IN ('confirmed', 'cancelled', 'pending')),
-    CHECK (payment_status IN ('pending', 'completed', 'failed'))
+    CHECK (payment_status IN ('pending', 'completed', 'failed')),
+    CHECK (travel_status IN ('active', 'completed', 'cancelled'))
 );
 
 -- Create indexes for better query performance
