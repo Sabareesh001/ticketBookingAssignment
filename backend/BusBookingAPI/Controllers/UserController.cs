@@ -9,11 +9,13 @@ namespace BusBookingAPI.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IAuthService _authService;
         private readonly ILogger<UserController> _logger;
 
-        public UserController(IUserService userService, ILogger<UserController> logger)
+        public UserController(IUserService userService, IAuthService authService, ILogger<UserController> logger)
         {
             _userService = userService;
+            _authService = authService;
             _logger = logger;
         }
 
@@ -95,18 +97,18 @@ namespace BusBookingAPI.Controllers
         }
 
         /// <summary>
-        /// Create a new user
+        /// Create a new user (Signup)
         /// </summary>
         /// <param name="createUserDto">User details</param>
-        /// <returns>Created user</returns>
+        /// <returns>Auth token and created user</returns>
         [HttpPost]
-        public async Task<ActionResult<UserDto>> CreateUser(CreateUserDto createUserDto)
+        public async Task<ActionResult<AuthResponse>> CreateUser(CreateUserDto createUserDto)
         {
             try
             {
                 _logger.LogInformation("Creating new user");
-                var user = await _userService.CreateUserAsync(createUserDto);
-                return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
+                var response = await _authService.SignupAsync(createUserDto);
+                return CreatedAtAction(nameof(GetUser), new { id = response.User.Id }, response);
             }
             catch (ArgumentException ex)
             {
