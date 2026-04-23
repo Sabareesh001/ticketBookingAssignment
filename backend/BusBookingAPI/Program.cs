@@ -36,6 +36,7 @@ public class Program
         builder.Services.AddScoped<IDistrictService, DistrictService>();
         builder.Services.AddScoped<ICountryService, CountryService>();
         builder.Services.AddScoped<IRouteService, RouteService>();
+        builder.Services.AddScoped<IOperatorService, OperatorService>();
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
