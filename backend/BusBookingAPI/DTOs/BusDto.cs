@@ -7,6 +7,8 @@ namespace BusBookingAPI.DTOs
         public int OperatorId { get; set; }
         public string OperatorName { get; set; }
         public int RouteId { get; set; }
+        public int SourceLocationId { get; set; }
+        public int DestinationLocationId { get; set; }
         public int? SeatingCapacity { get; set; }
         public bool IsActive { get; set; }
         public string SourceCity { get; set; }

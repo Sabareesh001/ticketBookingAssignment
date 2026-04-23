@@ -11,6 +11,7 @@ namespace BusBookingAPI.Data
         }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<Country> Countries { get; set; }
         public DbSet<State> States { get; set; }
         public DbSet<District> Districts { get; set; }
         public DbSet<Location> Locations { get; set; }
@@ -52,6 +53,26 @@ namespace BusBookingAPI.Data
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
+            // Country configuration
+            modelBuilder.Entity<Country>()
+                .ToTable("countries");
+            modelBuilder.Entity<Country>()
+                .HasKey(c => c.Id);
+            modelBuilder.Entity<Country>()
+                .Property(c => c.Id).HasColumnName("id");
+            modelBuilder.Entity<Country>()
+                .Property(c => c.CountryName).HasColumnName("country_name");
+            modelBuilder.Entity<Country>()
+                .Property(c => c.CountryCode).HasColumnName("country_code");
+            modelBuilder.Entity<Country>()
+                .Property(c => c.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<Country>()
+                .HasIndex(c => c.CountryName)
+                .IsUnique();
+            modelBuilder.Entity<Country>()
+                .HasIndex(c => c.CountryCode)
+                .IsUnique();
+
             // State configuration
             modelBuilder.Entity<State>()
                 .ToTable("states");
@@ -62,9 +83,14 @@ namespace BusBookingAPI.Data
             modelBuilder.Entity<State>()
                 .Property(s => s.StateName).HasColumnName("state_name");
             modelBuilder.Entity<State>()
-                .Property(s => s.Country).HasColumnName("country");
+                .Property(s => s.CountryId).HasColumnName("country_id");
             modelBuilder.Entity<State>()
                 .Property(s => s.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<State>()
+                .HasOne(s => s.Country)
+                .WithMany(c => c.States)
+                .HasForeignKey(s => s.CountryId)
+                .OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<State>()
                 .HasIndex(s => s.StateName)
                 .IsUnique();
@@ -107,13 +133,15 @@ namespace BusBookingAPI.Data
             modelBuilder.Entity<Location>()
                 .Property(l => l.StateId).HasColumnName("state_id");
             modelBuilder.Entity<Location>()
-                .Property(l => l.Country).HasColumnName("country");
+                .Property(l => l.CountryId).HasColumnName("country_id");
             modelBuilder.Entity<Location>()
                 .Property(l => l.PostalCode).HasColumnName("postal_code");
             modelBuilder.Entity<Location>()
                 .Property(l => l.Latitude).HasColumnName("latitude");
             modelBuilder.Entity<Location>()
                 .Property(l => l.Longitude).HasColumnName("longitude");
+            modelBuilder.Entity<Location>()
+                .Property(l => l.OperatorId).HasColumnName("operator_id");
             modelBuilder.Entity<Location>()
                 .Property(l => l.CreatedAt).HasColumnName("created_at");
             modelBuilder.Entity<Location>()
@@ -128,6 +156,16 @@ namespace BusBookingAPI.Data
                 .WithMany(s => s.Locations)
                 .HasForeignKey(l => l.StateId)
                 .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Location>()
+                .HasOne(l => l.Country)
+                .WithMany(c => c.Locations)
+                .HasForeignKey(l => l.CountryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Location>()
+                .HasOne(l => l.Operator)
+                .WithMany(bo => bo.Locations)
+                .HasForeignKey(l => l.OperatorId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // Route configuration
             modelBuilder.Entity<Route>()
@@ -205,6 +243,10 @@ namespace BusBookingAPI.Data
             modelBuilder.Entity<Bus>()
                 .Property(b => b.RouteId).HasColumnName("route_id");
             modelBuilder.Entity<Bus>()
+                .Property(b => b.SourceLocationId).HasColumnName("source_location_id");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.DestinationLocationId).HasColumnName("destination_location_id");
+            modelBuilder.Entity<Bus>()
                 .Property(b => b.SeatingCapacity).HasColumnName("seating_capacity");
             modelBuilder.Entity<Bus>()
                 .Property(b => b.IsActive).HasColumnName("is_active");
@@ -224,6 +266,16 @@ namespace BusBookingAPI.Data
                 .HasOne(b => b.Route)
                 .WithMany(r => r.Buses)
                 .HasForeignKey(b => b.RouteId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Bus>()
+                .HasOne(b => b.SourceLocation)
+                .WithMany(l => l.SourceBuses)
+                .HasForeignKey(b => b.SourceLocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Bus>()
+                .HasOne(b => b.DestinationLocation)
+                .WithMany(l => l.DestinationBuses)
+                .HasForeignKey(b => b.DestinationLocationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Booking configuration

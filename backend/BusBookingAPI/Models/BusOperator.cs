@@ -15,5 +15,6 @@ namespace BusBookingAPI.Models
 
         // Navigation properties
         public ICollection<Bus> Buses { get; set; } = new List<Bus>();
+        public ICollection<Location> Locations { get; set; } = new List<Location>();
     }
 }

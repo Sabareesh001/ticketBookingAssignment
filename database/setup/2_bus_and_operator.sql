@@ -24,16 +24,22 @@
         registration_number VARCHAR(50) NOT NULL UNIQUE,
         operator_id INT NOT NULL,
         route_id INT NOT NULL,
+        source_location_id INT NOT NULL,
+        destination_location_id INT NOT NULL,
         seating_capacity INT,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (operator_id) REFERENCES bus_operators(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-        FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE RESTRICT ON UPDATE CASCADE
+        FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+        FOREIGN KEY (source_location_id) REFERENCES locations(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+        FOREIGN KEY (destination_location_id) REFERENCES locations(id) ON DELETE RESTRICT ON UPDATE CASCADE
     );
 
     -- Create indexes for better query performance
     CREATE INDEX idx_buses_registration ON buses(registration_number);
     CREATE INDEX idx_buses_operator ON buses(operator_id);
     CREATE INDEX idx_buses_route ON buses(route_id);
+    CREATE INDEX idx_buses_source_location ON buses(source_location_id);
+    CREATE INDEX idx_buses_destination_location ON buses(destination_location_id);
     CREATE INDEX idx_buses_active ON buses(is_active);

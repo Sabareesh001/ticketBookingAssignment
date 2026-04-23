@@ -1,15 +1,14 @@
 namespace BusBookingAPI.Models
 {
-    public class State
+    public class Country
     {
         public int Id { get; set; }
-        public string StateName { get; set; }
-        public int CountryId { get; set; }
+        public string CountryName { get; set; }
+        public string CountryCode { get; set; } // ISO 3166-1 alpha-2 code (e.g., "IN", "US")
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
-        public Country Country { get; set; }
-        public ICollection<District> Districts { get; set; } = new List<District>();
+        public ICollection<State> States { get; set; } = new List<State>();
         public ICollection<Location> Locations { get; set; } = new List<Location>();
     }
 }

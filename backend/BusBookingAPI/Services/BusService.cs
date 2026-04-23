@@ -44,6 +44,8 @@ namespace BusBookingAPI.Services
                     .Include(b => b.Route.SourceLocation.District)
                     .Include(b => b.Route.DestinationLocation)
                     .Include(b => b.Route.DestinationLocation.District)
+                    .Include(b => b.SourceLocation)
+                    .Include(b => b.DestinationLocation)
                     .Select(b => new BusDto
                     {
                         Id = b.Id,
@@ -51,6 +53,8 @@ namespace BusBookingAPI.Services
                         OperatorId = b.OperatorId,
                         OperatorName = b.Operator.OperatorName,
                         RouteId = b.RouteId,
+                        SourceLocationId = b.SourceLocationId,
+                        DestinationLocationId = b.DestinationLocationId,
                         SeatingCapacity = b.SeatingCapacity,
                         IsActive = b.IsActive,
                         SourceCity = b.Route.SourceLocation.City,

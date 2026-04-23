@@ -31,6 +31,11 @@ public class Program
 
         // Register services
         builder.Services.AddScoped<IBusService, BusService>();
+        builder.Services.AddScoped<ILocationService, LocationService>();
+        builder.Services.AddScoped<IStateService, StateService>();
+        builder.Services.AddScoped<IDistrictService, DistrictService>();
+        builder.Services.AddScoped<ICountryService, CountryService>();
+        builder.Services.AddScoped<IRouteService, RouteService>();
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
