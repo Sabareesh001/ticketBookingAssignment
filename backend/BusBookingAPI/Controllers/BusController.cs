@@ -9,11 +9,13 @@ namespace BusBookingAPI.Controllers
     public class BusController : ControllerBase
     {
         private readonly IBusService _busService;
+        private readonly IBusAvailabilityService _availabilityService;
         private readonly ILogger<BusController> _logger;
 
-        public BusController(IBusService busService, ILogger<BusController> logger)
+        public BusController(IBusService busService, IBusAvailabilityService availabilityService, ILogger<BusController> logger)
         {
             _busService = busService;
+            _availabilityService = availabilityService;
             _logger = logger;
         }
 
@@ -175,6 +177,62 @@ namespace BusBookingAPI.Controllers
             {
                 _logger.LogError($"Error retrieving available buses: {ex.Message}");
                 return StatusCode(500, new { message = "An error occurred while retrieving available buses" });
+            }
+        }
+
+        /// <summary>
+        /// Get available dates for a specific bus
+        /// </summary>
+        /// <param name="busId">Bus ID</param>
+        /// <param name="startDate">Start date (optional)</param>
+        /// <param name="endDate">End date (optional)</param>
+        /// <returns>Available dates for the bus</returns>
+        [HttpGet("{busId}/available-dates")]
+        public async Task<ActionResult<AvailableDatesResponse>> GetBusAvailableDates(
+            int busId, 
+            [FromQuery] DateTime? startDate = null, 
+            [FromQuery] DateTime? endDate = null)
+        {
+            try
+            {
+                _logger.LogInformation($"Getting available dates for bus {busId}");
+                var availableDates = await _availabilityService.GetAvailableDatesAsync(busId, startDate, endDate);
+                return Ok(availableDates);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning($"Bus not found: {ex.Message}");
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting available dates: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while retrieving available dates" });
+            }
+        }
+
+        /// <summary>
+        /// Generate availability for all active buses (90 days ahead)
+        /// </summary>
+        /// <returns>Success message</returns>
+        [HttpPost("generate-all-availability")]
+        public async Task<ActionResult> GenerateAllBusAvailability()
+        {
+            try
+            {
+                _logger.LogInformation("Generating availability for all active buses");
+                
+                // This would need to be implemented in the availability service
+                // For now, return a message indicating manual generation is needed
+                return Ok(new { 
+                    message = "Please generate availability for each bus individually using POST /api/bus/{busId}/generate-availability",
+                    note = "This endpoint can be enhanced to generate for all buses at once"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error generating availability for all buses: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while generating availability" });
             }
         }
     }

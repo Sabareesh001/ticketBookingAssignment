@@ -45,6 +45,9 @@ public class Program
         builder.Services.AddDbContext<BusBookingDbContext>(options =>
             options.UseNpgsql(finalConnectionString));
 
+        // Configure global DateTime handling for PostgreSQL
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
             {
@@ -75,6 +78,7 @@ public class Program
         // Register services
         builder.Services.AddScoped<IBusService, BusService>();
         builder.Services.AddScoped<IBookingService, BookingService>();
+        builder.Services.AddScoped<IBusAvailabilityService, BusAvailabilityService>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IOperatorAuthService, OperatorAuthService>();

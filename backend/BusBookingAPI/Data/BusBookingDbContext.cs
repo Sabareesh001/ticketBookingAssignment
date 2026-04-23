@@ -19,6 +19,7 @@ namespace BusBookingAPI.Data
         public DbSet<BusOperator> BusOperators { get; set; }
         public DbSet<Bus> Buses { get; set; }
         public DbSet<Booking> Bookings { get; set; }
+        public DbSet<BusAvailability> BusAvailabilities { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -253,6 +254,14 @@ namespace BusBookingAPI.Data
             modelBuilder.Entity<Bus>()
                 .Property(b => b.IsActive).HasColumnName("is_active");
             modelBuilder.Entity<Bus>()
+                .Property(b => b.OperatingDays).HasColumnName("operating_days");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.DepartureTime).HasColumnName("departure_time");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.ArrivalTime).HasColumnName("arrival_time");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.AdvanceBookingDays).HasColumnName("advance_booking_days");
+            modelBuilder.Entity<Bus>()
                 .Property(b => b.CreatedAt).HasColumnName("created_at");
             modelBuilder.Entity<Bus>()
                 .Property(b => b.UpdatedAt).HasColumnName("updated_at");
@@ -319,6 +328,36 @@ namespace BusBookingAPI.Data
                 .WithMany(bu => bu.Bookings)
                 .HasForeignKey(b => b.BusId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // BusAvailability configuration
+            modelBuilder.Entity<BusAvailability>()
+                .ToTable("bus_availability");
+            modelBuilder.Entity<BusAvailability>()
+                .HasKey(ba => ba.Id);
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.Id).HasColumnName("id");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.BusId).HasColumnName("bus_id");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.AvailableDate).HasColumnName("available_date");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.TotalSeats).HasColumnName("total_seats");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.AvailableSeats).HasColumnName("available_seats");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.IsActive).HasColumnName("is_active");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<BusAvailability>()
+                .HasOne(ba => ba.Bus)
+                .WithMany(b => b.Availabilities)
+                .HasForeignKey(ba => ba.BusId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<BusAvailability>()
+                .HasIndex(ba => new { ba.BusId, ba.AvailableDate })
+                .IsUnique();
         }
     }
 }

@@ -21,11 +21,13 @@ namespace BusBookingAPI.Services
     {
         private readonly BusBookingDbContext _context;
         private readonly ILogger<BookingService> _logger;
+        private readonly IBusAvailabilityService _availabilityService;
 
-        public BookingService(BusBookingDbContext context, ILogger<BookingService> logger)
+        public BookingService(BusBookingDbContext context, ILogger<BookingService> logger, IBusAvailabilityService availabilityService)
         {
             _context = context;
             _logger = logger;
+            _availabilityService = availabilityService;
         }
 
         public async Task<BookingDto> GetBookingByIdAsync(int id)
@@ -123,17 +125,30 @@ namespace BusBookingAPI.Services
             }
 
             // Validate that travel date is in the future
-            if (createBookingDto.TravelDate <= DateTime.UtcNow)
+            var travelDateUtc = createBookingDto.TravelDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(createBookingDto.TravelDate, DateTimeKind.Utc)
+                : createBookingDto.TravelDate.ToUniversalTime();
+                
+            if (travelDateUtc <= DateTime.UtcNow)
             {
                 throw new ArgumentException("Travel date must be in the future");
             }
 
-            // Validate seat availability (check if seats are already booked)
+            // Check if the date is available for booking
             var seatNumbers = createBookingDto.SeatNumbers.Split(',').Select(s => s.Trim()).ToList();
+            var requiredSeats = seatNumbers.Count;
+            
+            var isDateAvailable = await _availabilityService.IsDateAvailableAsync(createBookingDto.BusId, travelDateUtc, requiredSeats);
+            if (!isDateAvailable)
+            {
+                throw new InvalidOperationException($"The selected date is not available for booking or insufficient seats available");
+            }
+
+            // Validate seat availability (check if seats are already booked)
             var existingBooking = await _context.Bookings
                 .Where(b => b.BusId == createBookingDto.BusId &&
-                           b.TravelDate.Date == createBookingDto.TravelDate.Date &&
-                           b.TravelStatus == "active")
+                           b.TravelDate.Date == travelDateUtc.Date &&
+                           b.BookingStatus == "confirmed")
                 .ToListAsync();
 
             foreach (var existingB in existingBooking)
@@ -151,7 +166,7 @@ namespace BusBookingAPI.Services
                 UserId = createBookingDto.UserId,
                 BusId = createBookingDto.BusId,
                 BookingDate = DateTime.UtcNow,
-                TravelDate = createBookingDto.TravelDate,
+                TravelDate = travelDateUtc,
                 SeatNumbers = createBookingDto.SeatNumbers,
                 TotalFare = createBookingDto.TotalFare,
                 BookingStatus = "confirmed",
@@ -163,6 +178,9 @@ namespace BusBookingAPI.Services
 
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
+
+            // Update availability after successful booking
+            await _availabilityService.UpdateAvailabilityOnBookingAsync(createBookingDto.BusId, travelDateUtc, requiredSeats, true);
 
             _logger.LogInformation($"Booking created successfully with ID {booking.Id}");
 
@@ -181,10 +199,29 @@ namespace BusBookingAPI.Services
                 throw new KeyNotFoundException($"Booking with ID {id} not found");
             }
 
+            var oldSeatCount = booking.SeatNumbers.Split(',').Length;
+            var oldTravelDate = booking.TravelDate;
+            var oldBookingStatus = booking.BookingStatus;
+
             // Validate that travel date is in the future (if being changed)
-            if (updateBookingDto.TravelDate != booking.TravelDate && updateBookingDto.TravelDate <= DateTime.UtcNow)
+            var travelDateUtc = updateBookingDto.TravelDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(updateBookingDto.TravelDate, DateTimeKind.Utc)
+                : updateBookingDto.TravelDate.ToUniversalTime();
+                
+            if (updateBookingDto.TravelDate != booking.TravelDate && travelDateUtc <= DateTime.UtcNow)
             {
                 throw new ArgumentException("Travel date must be in the future");
+            }
+
+            // Check availability for new date if date is being changed
+            if (updateBookingDto.TravelDate != booking.TravelDate)
+            {
+                var newSeatCount = updateBookingDto.SeatNumbers.Split(',').Length;
+                var isNewDateAvailable = await _availabilityService.IsDateAvailableAsync(booking.BusId, travelDateUtc, newSeatCount);
+                if (!isNewDateAvailable)
+                {
+                    throw new InvalidOperationException($"The new travel date is not available for booking");
+                }
             }
 
             // Validate seat availability if seats are being changed
@@ -193,9 +230,9 @@ namespace BusBookingAPI.Services
                 var seatNumbers = updateBookingDto.SeatNumbers.Split(',').Select(s => s.Trim()).ToList();
                 var existingBooking = await _context.Bookings
                     .Where(b => b.BusId == booking.BusId &&
-                               b.TravelDate.Date == updateBookingDto.TravelDate.Date &&
+                               b.TravelDate.Date == travelDateUtc.Date &&
                                b.Id != id &&
-                               b.TravelStatus == "active")
+                               b.BookingStatus == "confirmed")
                     .ToListAsync();
 
                 foreach (var existingB in existingBooking)
@@ -209,7 +246,7 @@ namespace BusBookingAPI.Services
                 }
             }
 
-            booking.TravelDate = updateBookingDto.TravelDate;
+            booking.TravelDate = travelDateUtc;
             booking.SeatNumbers = updateBookingDto.SeatNumbers;
             booking.TotalFare = updateBookingDto.TotalFare;
             booking.BookingStatus = updateBookingDto.BookingStatus;
@@ -219,6 +256,19 @@ namespace BusBookingAPI.Services
 
             _context.Bookings.Update(booking);
             await _context.SaveChangesAsync();
+
+            // Update availability based on booking status changes
+            if (oldBookingStatus == "confirmed" && updateBookingDto.BookingStatus == "cancelled")
+            {
+                // Restore availability when booking is cancelled
+                await _availabilityService.UpdateAvailabilityOnBookingAsync(booking.BusId, oldTravelDate, oldSeatCount, false);
+            }
+            else if (oldBookingStatus != "confirmed" && updateBookingDto.BookingStatus == "confirmed")
+            {
+                // Reduce availability when booking is confirmed
+                var newSeatCount = updateBookingDto.SeatNumbers.Split(',').Length;
+                await _availabilityService.UpdateAvailabilityOnBookingAsync(booking.BusId, travelDateUtc, newSeatCount, true);
+            }
 
             _logger.LogInformation($"Booking with ID {id} updated successfully");
 
@@ -255,8 +305,17 @@ namespace BusBookingAPI.Services
         {
             _logger.LogInformation($"Fetching bookings between {startDate} and {endDate}");
 
+            // Ensure dates are in UTC
+            var startDateUtc = startDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(startDate, DateTimeKind.Utc)
+                : startDate.ToUniversalTime();
+                
+            var endDateUtc = endDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(endDate, DateTimeKind.Utc)
+                : endDate.ToUniversalTime();
+
             var bookings = await _context.Bookings
-                .Where(b => b.TravelDate >= startDate && b.TravelDate <= endDate)
+                .Where(b => b.TravelDate >= startDateUtc && b.TravelDate <= endDateUtc)
                 .Include(b => b.User)
                 .Include(b => b.Bus)
                 .Include(b => b.Bus.Operator)

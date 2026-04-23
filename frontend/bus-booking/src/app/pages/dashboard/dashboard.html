@@ -101,7 +101,13 @@
               <span>Date of Journey</span>
             </label>
             <div class="date-input">
-              <input type="date" [(ngModel)]="searchCriteria.journeyDate" class="input-field">
+              <input 
+                type="date" 
+                [(ngModel)]="searchCriteria.journeyDate" 
+                (change)="onDateChange()"
+                [min]="getMinDate()"
+                [max]="getMaxDate()"
+                class="input-field">
             </div>
           </div>
         </div>
@@ -114,9 +120,10 @@
           </div>
         </div>
 
-        <button class="search-btn" (click)="searchBuses()" [disabled]="searchInProgress">
-          <span *ngIf="!searchInProgress">🔍 Search buses</span>
+        <button class="search-btn" (click)="searchBuses()" [disabled]="searchInProgress || isCheckingAvailability">
+          <span *ngIf="!searchInProgress && !isCheckingAvailability">🔍 Search buses</span>
           <span *ngIf="searchInProgress">⏳ Searching...</span>
+          <span *ngIf="isCheckingAvailability">⏳ Checking availability...</span>
         </button>
       </div>
     </div>
@@ -168,13 +175,26 @@
               <span class="detail-value">{{ bus.estimatedDurationHours || 'N/A' }} hrs</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">Seats</span>
+              <span class="detail-label">Total Seats</span>
               <span class="detail-value">{{ bus.seatingCapacity || 'N/A' }}</span>
+            </div>
+            <div class="detail-item" *ngIf="bus.availableSeats !== undefined">
+              <span class="detail-label">Available Seats</span>
+              <span class="detail-value" [class.low-availability]="(bus.availableSeats || 0) < 5">
+                {{ bus.availableSeats }}
+                <span *ngIf="(bus.availableSeats || 0) < 5" class="availability-warning">⚠️ Few seats left</span>
+              </span>
             </div>
           </div>
 
           <div class="bus-actions">
-            <button class="select-btn">Select Bus</button>
+            <button 
+              class="select-btn" 
+              (click)="selectBus(bus)"
+              [disabled]="!bus.isAvailableOnDate || (bus.availableSeats || 0) === 0">
+              <span *ngIf="bus.isAvailableOnDate && (bus.availableSeats || 0) > 0">Select Bus</span>
+              <span *ngIf="!bus.isAvailableOnDate || (bus.availableSeats || 0) === 0">Not Available</span>
+            </button>
           </div>
         </div>
       </div>
@@ -185,4 +205,125 @@
       </div>
     </div>
   </section>
+
+  <!-- Seat Selection Modal -->
+  <div class="modal-overlay" *ngIf="showSeatModal" (click)="closeSeatModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Select Your Seats</h2>
+        <button class="close-btn" (click)="closeSeatModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Bus Info -->
+        <div class="booking-bus-info" *ngIf="selectedBus">
+          <div class="info-row">
+            <span class="info-label">Operator:</span>
+            <span class="info-value">{{ selectedBus.operatorName }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Route:</span>
+            <span class="info-value">{{ selectedBus.sourceCity }} → {{ selectedBus.destinationCity }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Date:</span>
+            <span class="info-value">{{ searchCriteria.journeyDate }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Price per seat:</span>
+            <span class="info-value">₹{{ selectedBus.price }}</span>
+          </div>
+        </div>
+
+        <!-- Seat Legend -->
+        <div class="seat-legend">
+          <div class="legend-item">
+            <div class="seat available"></div>
+            <span>Available</span>
+          </div>
+          <div class="legend-item">
+            <div class="seat selected"></div>
+            <span>Selected</span>
+          </div>
+          <div class="legend-item">
+            <div class="seat booked"></div>
+            <span>Booked</span>
+          </div>
+        </div>
+
+        <!-- Error Message -->
+        <div *ngIf="bookingError" class="booking-error">
+          {{ bookingError }}
+        </div>
+
+        <!-- Seat Layout -->
+        <div class="seat-layout">
+          <div class="bus-front">🚌 Front</div>
+          <div class="seats-container">
+            <div class="seat-row" *ngFor="let row of seatLayout">
+              <!-- Left side seats (first 2 seats) -->
+              <div class="seat-side left-side">
+                <button 
+                  *ngFor="let seatNumber of row.slice(0, 2)"
+                  [class]="getSeatClass(seatNumber)"
+                  [disabled]="isSeatBooked(seatNumber)"
+                  (click)="toggleSeat(seatNumber)">
+                  {{ seatNumber }}
+                </button>
+              </div>
+              
+              <!-- Aisle -->
+              <div class="aisle"></div>
+              
+              <!-- Right side seats (last 2 seats) -->
+              <div class="seat-side right-side">
+                <button 
+                  *ngFor="let seatNumber of row.slice(2, 4)"
+                  [class]="getSeatClass(seatNumber)"
+                  [disabled]="isSeatBooked(seatNumber)"
+                  (click)="toggleSeat(seatNumber)">
+                  {{ seatNumber }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected Seats Summary -->
+        <div class="booking-summary" *ngIf="selectedSeats.length > 0">
+          <div class="summary-row">
+            <span class="summary-label">Selected Seats:</span>
+            <span class="summary-value">{{ selectedSeats.join(', ') }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Total Seats:</span>
+            <span class="summary-value">{{ selectedSeats.length }}</span>
+          </div>
+          <div class="summary-row total">
+            <span class="summary-label">Total Fare:</span>
+            <span class="summary-value">₹{{ getTotalFare() }}</span>
+          </div>
+        </div>
+
+        <!-- Availability Info -->
+        <div class="availability-info" *ngIf="selectedBus">
+          <div class="info-row">
+            <span class="info-label">Available Seats:</span>
+            <span class="info-value" [class.low-availability]="availableSeatsCount < 5">
+              {{ availableSeatsCount }}
+              <span *ngIf="availableSeatsCount < 5" class="availability-warning">⚠️ Few seats left</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeSeatModal()" [disabled]="isBookingInProgress">Cancel</button>
+        <button class="confirm-btn" (click)="confirmBooking()" [disabled]="selectedSeats.length === 0 || isBookingInProgress">
+          <span *ngIf="!isBookingInProgress">Confirm Booking</span>
+          <span *ngIf="isBookingInProgress">Processing...</span>
+        </button>
+      </div>
+    </div>
+  </div>
 </div>

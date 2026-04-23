@@ -116,6 +116,46 @@ namespace BusBookingAPI.Controllers
         }
 
         /// <summary>
+        /// Get booked seats for a specific bus and date
+        /// </summary>
+        /// <param name="busId">Bus ID</param>
+        /// <param name="travelDate">Travel date (YYYY-MM-DD format)</param>
+        /// <returns>List of bookings for the bus on the specified date</returns>
+        [HttpGet("bus/{busId}/seats")]
+        public async Task<ActionResult<List<BookingDto>>> GetBookedSeats(int busId, [FromQuery] string travelDate)
+        {
+            try
+            {
+                _logger.LogInformation($"Getting booked seats for bus {busId} on {travelDate}");
+                
+                if (!DateTime.TryParse(travelDate, out DateTime parsedDate))
+                {
+                    return BadRequest(new { message = "Invalid date format. Use YYYY-MM-DD format." });
+                }
+
+                var bookings = await _bookingService.GetBookingsByBusIdAsync(busId);
+                
+                // Filter bookings for the specific date and confirmed status
+                var dateBookings = bookings.Where(b => 
+                    b.TravelDate.Date == parsedDate.Date && 
+                    b.BookingStatus == "confirmed"
+                ).ToList();
+
+                return Ok(dateBookings);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning($"Bus not found: {ex.Message}");
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving booked seats: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while retrieving booked seats" });
+            }
+        }
+
+        /// <summary>
         /// Get bookings within a date range
         /// </summary>
         /// <param name="startDate">Start date (ISO 8601 format)</param>
