@@ -115,6 +115,7 @@ namespace BusBookingAPI.Services
                 SourceLocationId = createBusDto.SourceLocationId,
                 DestinationLocationId = createBusDto.DestinationLocationId,
                 SeatingCapacity = createBusDto.SeatingCapacity,
+                Price = createBusDto.Price,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -184,6 +185,7 @@ namespace BusBookingAPI.Services
             bus.SourceLocationId = updateBusDto.SourceLocationId;
             bus.DestinationLocationId = updateBusDto.DestinationLocationId;
             bus.SeatingCapacity = updateBusDto.SeatingCapacity;
+            bus.Price = updateBusDto.Price;
             bus.IsActive = updateBusDto.IsActive;
             bus.UpdatedAt = DateTime.UtcNow;
 
@@ -235,11 +237,23 @@ namespace BusBookingAPI.Services
                     return response;
                 }
 
-                // Find routes that match source and destination districts
+                // Normalize input for case-insensitive comparison
+                var normalizedSourceDistrict = sourceDistrict.ToLower().Trim();
+                var normalizedDestinationDistrict = destinationDistrict.ToLower().Trim();
+
+                // Ensure source and destination are different (prevent same district search)
+                if (normalizedSourceDistrict == normalizedDestinationDistrict)
+                {
+                    response.Success = false;
+                    response.Message = "Source and destination districts must be different.";
+                    return response;
+                }
+
+                // Find buses that match source and destination districts (strictly directional - no reverse matching)
                 var buses = await _context.Buses
                     .Where(b => b.IsActive &&
-                                b.Route.SourceLocation.District.DistrictName.ToLower() == sourceDistrict.ToLower() &&
-                                b.Route.DestinationLocation.District.DistrictName.ToLower() == destinationDistrict.ToLower())
+                                b.SourceLocation.District.DistrictName.ToLower() == normalizedSourceDistrict &&
+                                b.DestinationLocation.District.DistrictName.ToLower() == normalizedDestinationDistrict)
                     .Include(b => b.Operator)
                     .Include(b => b.Route)
                     .Include(b => b.Route.SourceLocation)
@@ -247,7 +261,9 @@ namespace BusBookingAPI.Services
                     .Include(b => b.Route.DestinationLocation)
                     .Include(b => b.Route.DestinationLocation.District)
                     .Include(b => b.SourceLocation)
+                    .Include(b => b.SourceLocation.District)
                     .Include(b => b.DestinationLocation)
+                    .Include(b => b.DestinationLocation.District)
                     .Select(b => new BusDto
                     {
                         Id = b.Id,
@@ -258,9 +274,10 @@ namespace BusBookingAPI.Services
                         SourceLocationId = b.SourceLocationId,
                         DestinationLocationId = b.DestinationLocationId,
                         SeatingCapacity = b.SeatingCapacity,
+                        Price = b.Price,
                         IsActive = b.IsActive,
-                        SourceCity = b.Route.SourceLocation.City,
-                        DestinationCity = b.Route.DestinationLocation.City,
+                        SourceCity = b.SourceLocation.City,
+                        DestinationCity = b.DestinationLocation.City,
                         DistanceKm = b.Route.DistanceKm,
                         EstimatedDurationHours = b.Route.EstimatedDurationHours
                     })
@@ -297,6 +314,7 @@ namespace BusBookingAPI.Services
                 SourceLocationId = bus.SourceLocationId,
                 DestinationLocationId = bus.DestinationLocationId,
                 SeatingCapacity = bus.SeatingCapacity,
+                Price = bus.Price,
                 IsActive = bus.IsActive,
                 SourceCity = bus.SourceLocation?.City,
                 DestinationCity = bus.DestinationLocation?.City,

@@ -1,0 +1,132 @@
+<div class="signup-container">
+  <div class="signup-card">
+    <h2>Bus Operator Registration</h2>
+    
+    <form [formGroup]="signupForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="operatorName">Operator Name</label>
+        <input
+          type="text"
+          id="operatorName"
+          formControlName="operatorName"
+          class="form-control"
+          [class.is-invalid]="submitted && f['operatorName'].errors"
+          placeholder="Enter operator name"
+        />
+        <div class="invalid-feedback" *ngIf="submitted && f['operatorName'].errors">
+          <span *ngIf="f['operatorName'].errors['required']">Operator name is required</span>
+          <span *ngIf="f['operatorName'].errors['minlength']">Operator name must be at least 3 characters</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          formControlName="email"
+          class="form-control"
+          [class.is-invalid]="submitted && f['email'].errors"
+          placeholder="Enter email"
+        />
+        <div class="invalid-feedback" *ngIf="submitted && f['email'].errors">
+          <span *ngIf="f['email'].errors['required']">Email is required</span>
+          <span *ngIf="f['email'].errors['email']">Email must be valid</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="phoneNumber">Phone Number</label>
+        <input
+          type="tel"
+          id="phoneNumber"
+          formControlName="phoneNumber"
+          class="form-control"
+          [class.is-invalid]="submitted && f['phoneNumber'].errors"
+          placeholder="Enter 10-digit phone number"
+        />
+        <div class="invalid-feedback" *ngIf="submitted && f['phoneNumber'].errors">
+          <span *ngIf="f['phoneNumber'].errors['required']">Phone number is required</span>
+          <span *ngIf="f['phoneNumber'].errors['pattern']">Phone number must be 10 digits</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="licenseNumber">License Number</label>
+        <input
+          type="text"
+          id="licenseNumber"
+          formControlName="licenseNumber"
+          class="form-control"
+          [class.is-invalid]="submitted && f['licenseNumber'].errors"
+          placeholder="Enter license number"
+        />
+        <div class="invalid-feedback" *ngIf="submitted && f['licenseNumber'].errors">
+          <span *ngIf="f['licenseNumber'].errors['required']">License number is required</span>
+          <span *ngIf="f['licenseNumber'].errors['minlength']">License number must be at least 5 characters</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="address">Address</label>
+        <textarea
+          id="address"
+          formControlName="address"
+          class="form-control"
+          [class.is-invalid]="submitted && f['address'].errors"
+          placeholder="Enter address"
+          rows="3"
+        ></textarea>
+        <div class="invalid-feedback" *ngIf="submitted && f['address'].errors">
+          <span *ngIf="f['address'].errors['required']">Address is required</span>
+          <span *ngIf="f['address'].errors['minlength']">Address must be at least 5 characters</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          formControlName="password"
+          class="form-control"
+          [class.is-invalid]="submitted && f['password'].errors"
+          placeholder="Enter password"
+        />
+        <div class="invalid-feedback" *ngIf="submitted && f['password'].errors">
+          <span *ngIf="f['password'].errors['required']">Password is required</span>
+          <span *ngIf="f['password'].errors['minlength']">Password must be at least 6 characters</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <input
+          type="password"
+          id="confirmPassword"
+          formControlName="confirmPassword"
+          class="form-control"
+          [class.is-invalid]="submitted && (f['confirmPassword'].errors || signupForm.errors?.['passwordMismatch'])"
+          placeholder="Confirm password"
+        />
+        <div class="invalid-feedback" *ngIf="submitted && (f['confirmPassword'].errors || signupForm.errors?.['passwordMismatch'])">
+          <span *ngIf="f['confirmPassword'].errors?.['required']">Confirm password is required</span>
+          <span *ngIf="signupForm.errors?.['passwordMismatch']">Passwords do not match</span>
+        </div>
+      </div>
+
+      <div class="error-message" *ngIf="error">
+        {{ error }}
+      </div>
+
+      <button type="submit" class="btn btn-primary" [disabled]="loading">
+        <span *ngIf="!loading">Register</span>
+        <span *ngIf="loading">Registering...</span>
+      </button>
+    </form>
+
+    <p class="login-link">
+      Already have an account? <a routerLink="/operator-login">Login here</a>
+    </p>
+  </div>
+</div>

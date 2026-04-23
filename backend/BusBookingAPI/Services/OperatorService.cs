@@ -12,6 +12,8 @@ namespace BusBookingAPI.Services
         Task<OperatorDto> CreateOperatorAsync(CreateOperatorDto createOperatorDto);
         Task<OperatorDto> UpdateOperatorAsync(int id, UpdateOperatorDto updateOperatorDto);
         Task<bool> DeleteOperatorAsync(int id);
+        Task<List<BusDto>> GetOperatorBusesAsync(int operatorId);
+        Task<List<LocationDto>> GetOperatorLocationsAsync(int operatorId);
     }
 
     public class OperatorService : IOperatorService
@@ -183,6 +185,77 @@ namespace BusBookingAPI.Services
                 IsActive = op.IsActive,
                 CreatedAt = op.CreatedAt,
                 UpdatedAt = op.UpdatedAt
+            };
+        }
+
+        public async Task<List<BusDto>> GetOperatorBusesAsync(int operatorId)
+        {
+            _logger.LogInformation($"Fetching buses for operator with ID {operatorId}");
+
+            var operatorExists = await _context.BusOperators.AnyAsync(o => o.Id == operatorId);
+            if (!operatorExists)
+            {
+                throw new KeyNotFoundException($"Operator with ID {operatorId} not found");
+            }
+
+            var buses = await _context.Buses
+                .Where(b => b.OperatorId == operatorId)
+                .ToListAsync();
+
+            return buses.Select(MapBusToDto).ToList();
+        }
+
+        public async Task<List<LocationDto>> GetOperatorLocationsAsync(int operatorId)
+        {
+            _logger.LogInformation($"Fetching locations for operator with ID {operatorId}");
+
+            var operatorExists = await _context.BusOperators.AnyAsync(o => o.Id == operatorId);
+            if (!operatorExists)
+            {
+                throw new KeyNotFoundException($"Operator with ID {operatorId} not found");
+            }
+
+            var locations = await _context.Locations
+                .Where(l => l.OperatorId == operatorId)
+                .ToListAsync();
+
+            return locations.Select(MapLocationToDto).ToList();
+        }
+
+        private BusDto MapBusToDto(Bus bus)
+        {
+            return new BusDto
+            {
+                Id = bus.Id,
+                RegistrationNumber = bus.RegistrationNumber,
+                OperatorId = bus.OperatorId,
+                RouteId = bus.RouteId,
+                SourceLocationId = bus.SourceLocationId,
+                DestinationLocationId = bus.DestinationLocationId,
+                SeatingCapacity = bus.SeatingCapacity,
+                Price = bus.Price,
+                IsActive = bus.IsActive,
+                CreatedAt = bus.CreatedAt,
+                UpdatedAt = bus.UpdatedAt
+            };
+        }
+
+        private LocationDto MapLocationToDto(Location location)
+        {
+            return new LocationDto
+            {
+                Id = location.Id,
+                StreetAddress = location.StreetAddress,
+                DistrictId = location.DistrictId,
+                City = location.City,
+                StateId = location.StateId,
+                CountryId = location.CountryId,
+                PostalCode = location.PostalCode,
+                Latitude = location.Latitude,
+                Longitude = location.Longitude,
+                OperatorId = location.OperatorId,
+                CreatedAt = location.CreatedAt,
+                UpdatedAt = location.UpdatedAt
             };
         }
     }

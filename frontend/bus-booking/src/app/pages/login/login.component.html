@@ -1,12 +1,13 @@
 <div class="login-container">
   <div class="login-card">
-    <h1>Login</h1>
+    <h1>{{ isOperatorLogin ? 'Bus Operator Login' : 'Login' }}</h1>
 
     <div *ngIf="error" class="alert alert-error">
       {{ error }}
     </div>
 
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+    <!-- User Login Form -->
+    <form *ngIf="!isOperatorLogin" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
       <div class="form-group">
         <label for="email">Email</label>
         <input
@@ -48,9 +49,65 @@
       </button>
     </form>
 
+    <!-- Operator Login Form -->
+    <form *ngIf="isOperatorLogin" [formGroup]="operatorLoginForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="operator-email">Email</label>
+        <input
+          type="email"
+          id="operator-email"
+          formControlName="email"
+          class="form-control"
+          [class.is-invalid]="submitted && operatorF['email'].errors"
+          placeholder="Enter your email"
+        />
+        <div *ngIf="submitted && operatorF['email'].errors" class="invalid-feedback">
+          <div *ngIf="operatorF['email'].errors['required']">Email is required</div>
+          <div *ngIf="operatorF['email'].errors['email']">Email must be valid</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="operator-password">Password</label>
+        <input
+          type="password"
+          id="operator-password"
+          formControlName="password"
+          class="form-control"
+          [class.is-invalid]="submitted && operatorF['password'].errors"
+          placeholder="Enter your password"
+        />
+        <div *ngIf="submitted && operatorF['password'].errors" class="invalid-feedback">
+          <div *ngIf="operatorF['password'].errors['required']">Password is required</div>
+          <div *ngIf="operatorF['password'].errors['minlength']">Password must be at least 6 characters</div>
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary"
+        [disabled]="loading"
+      >
+        {{ loading ? 'Logging in...' : 'Login' }}
+      </button>
+    </form>
+
     <div class="auth-links">
-      <p>Don't have an account? <a routerLink="/signup">Sign up</a></p>
-      <p><a routerLink="/forgot-password">Forgot password?</a></p>
+      <p *ngIf="!isOperatorLogin">
+        Don't have an account? <a routerLink="/signup">Sign up</a>
+      </p>
+      <p *ngIf="!isOperatorLogin">
+        <a routerLink="/forgot-password">Forgot password?</a>
+      </p>
+      <p *ngIf="isOperatorLogin">
+        Don't have an account? <a routerLink="/operator-signup">Register as operator</a>
+      </p>
+    </div>
+
+    <div class="operator-toggle">
+      <button type="button" class="btn btn-link" (click)="toggleOperatorLogin()">
+        {{ isOperatorLogin ? '← Back to Passenger Login' : 'Login as Bus Operator →' }}
+      </button>
     </div>
   </div>
 </div>

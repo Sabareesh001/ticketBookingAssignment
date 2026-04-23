@@ -73,6 +73,7 @@ public class Program
         builder.Services.AddScoped<IBookingService, BookingService>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<IOperatorAuthService, OperatorAuthService>();
         builder.Services.AddScoped<ILocationService, LocationService>();
         builder.Services.AddScoped<IStateService, StateService>();
         builder.Services.AddScoped<IDistrictService, DistrictService>();

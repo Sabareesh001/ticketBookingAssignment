@@ -1,0 +1,337 @@
+<div class="dashboard-container">
+  <nav class="navbar">
+    <div class="navbar-content">
+      <h1>Bus Operator Dashboard</h1>
+      <button class="btn btn-logout" (click)="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="dashboard-content">
+    <div class="tabs">
+      <button 
+        class="tab-button" 
+        [class.active]="activeTab === 'buses'"
+        (click)="switchTab('buses')">
+        My Buses
+      </button>
+      <button 
+        class="tab-button" 
+        [class.active]="activeTab === 'locations'"
+        (click)="switchTab('locations')">
+        My Locations
+      </button>
+    </div>
+
+    <div class="messages">
+      <div class="error-message" *ngIf="error">
+        {{ error }}
+      </div>
+      <div class="success-message" *ngIf="successMessage">
+        {{ successMessage }}
+      </div>
+    </div>
+
+    <!-- Buses Tab -->
+    <div class="tab-content" *ngIf="activeTab === 'buses'">
+      <div class="section-header">
+        <h2>Manage Your Buses</h2>
+        <button class="btn btn-primary" (click)="toggleBusForm()">
+          {{ showBusForm ? 'Cancel' : 'Add New Bus' }}
+        </button>
+      </div>
+
+      <!-- Bus Form -->
+      <div class="form-section" *ngIf="showBusForm">
+        <h3>{{ editingBusId ? 'Edit Bus' : 'Add New Bus' }}</h3>
+        <form [formGroup]="busForm" (ngSubmit)="saveBus()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="registrationNumber">Registration Number</label>
+              <input
+                type="text"
+                id="registrationNumber"
+                formControlName="registrationNumber"
+                class="form-control"
+                [class.is-invalid]="submitted && busFormControls['registrationNumber'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && busFormControls['registrationNumber'].errors">
+                Registration number is required
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="routeId">Route ID</label>
+              <input
+                type="number"
+                id="routeId"
+                formControlName="routeId"
+                class="form-control"
+                [class.is-invalid]="submitted && busFormControls['routeId'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && busFormControls['routeId'].errors">
+                Route ID is required
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="sourceLocationId">Source Location ID</label>
+              <input
+                type="number"
+                id="sourceLocationId"
+                formControlName="sourceLocationId"
+                class="form-control"
+                [class.is-invalid]="submitted && busFormControls['sourceLocationId'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && busFormControls['sourceLocationId'].errors">
+                Source location is required
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="destinationLocationId">Destination Location ID</label>
+              <input
+                type="number"
+                id="destinationLocationId"
+                formControlName="destinationLocationId"
+                class="form-control"
+                [class.is-invalid]="submitted && busFormControls['destinationLocationId'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && busFormControls['destinationLocationId'].errors">
+                Destination location is required
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="seatingCapacity">Seating Capacity</label>
+              <input
+                type="number"
+                id="seatingCapacity"
+                formControlName="seatingCapacity"
+                class="form-control"
+                [class.is-invalid]="submitted && busFormControls['seatingCapacity'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && busFormControls['seatingCapacity'].errors">
+                Seating capacity is required
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="price">Price</label>
+              <input
+                type="number"
+                id="price"
+                formControlName="price"
+                class="form-control"
+                [class.is-invalid]="submitted && busFormControls['price'].errors"
+                step="0.01"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && busFormControls['price'].errors">
+                Price is required
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="isActive">
+              <input type="checkbox" id="isActive" formControlName="isActive" />
+              Active
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-primary" [disabled]="loading">
+            {{ loading ? 'Saving...' : 'Save Bus' }}
+          </button>
+        </form>
+      </div>
+
+      <!-- Buses List -->
+      <div class="list-section">
+        <div *ngIf="buses.length === 0" class="empty-state">
+          <p>No buses added yet. Click "Add New Bus" to get started.</p>
+        </div>
+
+        <div class="bus-card" *ngFor="let bus of buses">
+          <div class="card-header">
+            <h4>{{ bus.registrationNumber }}</h4>
+            <span class="status" [class.active]="bus.isActive">{{ bus.isActive ? 'Active' : 'Inactive' }}</span>
+          </div>
+          <div class="card-body">
+            <p><strong>Route ID:</strong> {{ bus.routeId }}</p>
+            <p><strong>Seating Capacity:</strong> {{ bus.seatingCapacity }}</p>
+            <p><strong>Price:</strong> ₹{{ bus.price }}</p>
+            <p><strong>Source Location:</strong> {{ bus.sourceLocationId }}</p>
+            <p><strong>Destination Location:</strong> {{ bus.destinationLocationId }}</p>
+          </div>
+          <div class="card-footer">
+            <button class="btn btn-sm btn-secondary" (click)="editBus(bus)">Edit</button>
+            <button class="btn btn-sm btn-danger" (click)="deleteBus(bus.id)">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Locations Tab -->
+    <div class="tab-content" *ngIf="activeTab === 'locations'">
+      <div class="section-header">
+        <h2>Manage Your Locations</h2>
+        <button class="btn btn-primary" (click)="toggleLocationForm()">
+          {{ showLocationForm ? 'Cancel' : 'Add New Location' }}
+        </button>
+      </div>
+
+      <!-- Location Form -->
+      <div class="form-section" *ngIf="showLocationForm">
+        <h3>{{ editingLocationId ? 'Edit Location' : 'Add New Location' }}</h3>
+        <form [formGroup]="locationForm" (ngSubmit)="saveLocation()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="streetAddress">Street Address</label>
+              <input
+                type="text"
+                id="streetAddress"
+                formControlName="streetAddress"
+                class="form-control"
+                [class.is-invalid]="submitted && locationFormControls['streetAddress'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && locationFormControls['streetAddress'].errors">
+                Street address is required
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="city">City</label>
+              <input
+                type="text"
+                id="city"
+                formControlName="city"
+                class="form-control"
+                [class.is-invalid]="submitted && locationFormControls['city'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && locationFormControls['city'].errors">
+                City is required
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="districtId">District ID</label>
+              <input
+                type="number"
+                id="districtId"
+                formControlName="districtId"
+                class="form-control"
+                [class.is-invalid]="submitted && locationFormControls['districtId'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && locationFormControls['districtId'].errors">
+                District is required
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="stateId">State ID</label>
+              <input
+                type="number"
+                id="stateId"
+                formControlName="stateId"
+                class="form-control"
+                [class.is-invalid]="submitted && locationFormControls['stateId'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && locationFormControls['stateId'].errors">
+                State is required
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="countryId">Country ID</label>
+              <input
+                type="number"
+                id="countryId"
+                formControlName="countryId"
+                class="form-control"
+                [class.is-invalid]="submitted && locationFormControls['countryId'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && locationFormControls['countryId'].errors">
+                Country is required
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="postalCode">Postal Code</label>
+              <input
+                type="text"
+                id="postalCode"
+                formControlName="postalCode"
+                class="form-control"
+                [class.is-invalid]="submitted && locationFormControls['postalCode'].errors"
+              />
+              <div class="invalid-feedback" *ngIf="submitted && locationFormControls['postalCode'].errors">
+                Postal code is required
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="latitude">Latitude</label>
+              <input
+                type="number"
+                id="latitude"
+                formControlName="latitude"
+                class="form-control"
+                step="0.000001"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="longitude">Longitude</label>
+              <input
+                type="number"
+                id="longitude"
+                formControlName="longitude"
+                class="form-control"
+                step="0.000001"
+              />
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" [disabled]="loading">
+            {{ loading ? 'Saving...' : 'Save Location' }}
+          </button>
+        </form>
+      </div>
+
+      <!-- Locations List -->
+      <div class="list-section">
+        <div *ngIf="locations.length === 0" class="empty-state">
+          <p>No locations added yet. Click "Add New Location" to get started.</p>
+        </div>
+
+        <div class="location-card" *ngFor="let location of locations">
+          <div class="card-header">
+            <h4>{{ location.city }}</h4>
+          </div>
+          <div class="card-body">
+            <p><strong>Address:</strong> {{ location.streetAddress }}</p>
+            <p><strong>District:</strong> {{ location.districtId }}</p>
+            <p><strong>State:</strong> {{ location.stateId }}</p>
+            <p><strong>Country:</strong> {{ location.countryId }}</p>
+            <p><strong>Postal Code:</strong> {{ location.postalCode }}</p>
+            <p *ngIf="location.latitude"><strong>Latitude:</strong> {{ location.latitude }}</p>
+            <p *ngIf="location.longitude"><strong>Longitude:</strong> {{ location.longitude }}</p>
+          </div>
+          <div class="card-footer">
+            <button class="btn btn-sm btn-secondary" (click)="editLocation(location)">Edit</button>
+            <button class="btn btn-sm btn-danger" (click)="deleteLocation(location.id)">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

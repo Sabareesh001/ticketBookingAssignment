@@ -1,0 +1,183 @@
+<div class="dashboard-wrapper">
+  <!-- Header Navigation -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo-section">
+        <div class="logo">🚌</div>
+        <span class="logo-text">Bus Tickets</span>
+      </div>
+      <nav class="nav-menu">
+      </nav>
+      <div class="header-actions">
+        <div class="account-menu-container">
+          <button class="action-btn" (click)="toggleAccountMenu()">👤 Account</button>
+          <div class="account-dropdown" *ngIf="showAccountMenu">
+            <a href="#" class="dropdown-item">👤 My Profile</a>
+            <a href="#" class="dropdown-item">🔐 Change Password</a>
+            <hr class="dropdown-divider">
+            <button class="dropdown-item logout-btn" (click)="logout()">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-background"></div>
+    <div class="hero-content">
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
+
+      <!-- Search Form -->
+      <div class="search-card">
+        <div class="search-inputs">
+          <!-- FROM Location -->
+          <div class="location-group">
+            <label class="location-label">
+              <span class="input-icon">📍</span>
+              <span>From</span>
+            </label>
+            <div class="location-selectors">
+              <select [(ngModel)]="selectedFromCountry" (change)="onFromCountryChange(selectedFromCountry)" class="input-field">
+                <option value="" disabled selected>Select Country</option>
+                <option *ngFor="let country of fromCountries" [value]="country.id">
+                  {{ country.countryName }}
+                </option>
+              </select>
+
+              <select [(ngModel)]="selectedFromState" (change)="onFromStateChange(selectedFromState)" class="input-field" [disabled]="!selectedFromCountry">
+                <option value="" disabled selected>Select State</option>
+                <option *ngFor="let state of fromStates" [value]="state.id">
+                  {{ state.stateName }}
+                </option>
+              </select>
+
+              <select [(ngModel)]="selectedFromDistrict" class="input-field" [disabled]="!selectedFromState">
+                <option value="" disabled selected>Select District</option>
+                <option *ngFor="let district of fromDistricts" [value]="district.districtName">
+                  {{ district.districtName }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <!-- TO Location -->
+          <div class="location-group">
+            <label class="location-label">
+              <span class="input-icon">📍</span>
+              <span>To</span>
+            </label>
+            <div class="location-selectors">
+              <select [(ngModel)]="selectedToCountry" (change)="onToCountryChange(selectedToCountry)" class="input-field">
+                <option value="" disabled selected>Select Country</option>
+                <option *ngFor="let country of toCountries" [value]="country.id">
+                  {{ country.countryName }}
+                </option>
+              </select>
+
+              <select [(ngModel)]="selectedToState" (change)="onToStateChange(selectedToState)" class="input-field" [disabled]="!selectedToCountry">
+                <option value="" disabled selected>Select State</option>
+                <option *ngFor="let state of toStates" [value]="state.id">
+                  {{ state.stateName }}
+                </option>
+              </select>
+
+              <select [(ngModel)]="selectedToDistrict" class="input-field" [disabled]="!selectedToState">
+                <option value="" disabled selected>Select District</option>
+                <option *ngFor="let district of toDistricts" [value]="district.districtName">
+                  {{ district.districtName }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Date Selection -->
+          <div class="input-group">
+            <label class="input-label">
+              <span class="input-icon">📅</span>
+              <span>Date of Journey</span>
+            </label>
+            <div class="date-input">
+              <input type="date" [(ngModel)]="searchCriteria.journeyDate" class="input-field">
+            </div>
+          </div>
+        </div>
+
+        <!-- Date Tabs -->
+        <div class="search-options">
+          <div class="date-tabs">
+            <button class="tab-btn" [class.active]="isToday" (click)="setDateTab(true)">Today</button>
+            <button class="tab-btn" [class.active]="!isToday" (click)="setDateTab(false)">Tomorrow</button>
+          </div>
+        </div>
+
+        <button class="search-btn" (click)="searchBuses()" [disabled]="searchInProgress">
+          <span *ngIf="!searchInProgress">🔍 Search buses</span>
+          <span *ngIf="searchInProgress">⏳ Searching...</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Search Results Section -->
+  <section class="results-section" *ngIf="hasSearched">
+    <div class="results-container">
+      <div class="results-header">
+        <h2>Available Buses</h2>
+        <button class="back-btn" (click)="clearSearch()">← Back to Search</button>
+      </div>
+
+      <!-- No Results Message -->
+      <div *ngIf="searchResults.length === 0 && !searchInProgress" class="no-results">
+        <p>{{ errorMessage || 'No buses found for this route' }}</p>
+      </div>
+
+      <!-- Bus Results List -->
+      <div *ngIf="searchResults.length > 0" class="buses-list">
+        <div *ngFor="let bus of searchResults" class="bus-card">
+          <div class="bus-header">
+            <div class="bus-info">
+              <h3 class="operator-name">{{ bus.operatorName }}</h3>
+              <p class="registration">{{ bus.registrationNumber }}</p>
+            </div>
+            <div class="bus-price">
+              <span class="price-label">Price</span>
+              <span class="price-value">₹{{ bus.price }}</span>
+            </div>
+          </div>
+
+          <div class="bus-details">
+            <div class="detail-item">
+              <span class="detail-label">Route</span>
+              <span class="detail-value">{{ bus.sourceCity }} → {{ bus.destinationCity }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Distance</span>
+              <span class="detail-value">{{ bus.distanceKm || 'N/A' }} km</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Duration</span>
+              <span class="detail-value">{{ bus.estimatedDurationHours || 'N/A' }} hrs</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Seats</span>
+              <span class="detail-value">{{ bus.seatingCapacity || 'N/A' }}</span>
+            </div>
+          </div>
+
+          <div class="bus-actions">
+            <button class="select-btn">Select Bus</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="searchInProgress" class="loading-state">
+        <p>Searching for buses...</p>
+      </div>
+    </div>
+  </section>
+</div>
