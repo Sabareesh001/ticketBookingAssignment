@@ -1,9 +1,9 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { LocationService, Country, State, District } from '../../services/location.service';
-import { BusService, BusDto, AvailableDatesResponse } from '../../services/bus.service';
+import { BusService, BusDto, BusScheduleDto } from '../../services/bus.service';
 import { AuthService } from '../../services/auth.service';
 import { BookingService } from '../../services/booking.service';
 
@@ -16,15 +16,16 @@ interface SearchCriteria {
 interface BusWithAvailability extends BusDto {
   availableSeats?: number;
   isAvailableOnDate?: boolean;
+  activeSchedules?: BusScheduleDto[];
 }
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
-export class Dashboard implements OnInit {
+export class Dashboard implements OnInit, OnDestroy {
   fromCountries: Country[] = [];
   fromStates: State[] = [];
   fromDistricts: District[] = [];
@@ -70,10 +71,17 @@ export class Dashboard implements OnInit {
   selectedBus: BusWithAvailability | null = null;
   selectedSeats: number[] = [];
   bookedSeats: number[] = [];
+  reservedSeats: number[] = []; // Seats reserved by other users
   seatLayout: number[][] = [];
   isBookingInProgress: boolean = false;
   bookingError: string = '';
   availableSeatsCount: number = 0;
+
+  // Seat reservation
+  reservationId: number | null = null;
+  reservationTimer: any = null;
+  remainingTime: number = 0; // in seconds
+  isReserving: boolean = false;
 
   constructor(
     private locationService: LocationService,
@@ -86,6 +94,13 @@ export class Dashboard implements OnInit {
 
   ngOnInit() {
     this.loadInitialData();
+  }
+
+  ngOnDestroy() {
+    this.clearReservationTimer();
+    if (this.reservationId) {
+      this.releaseReservation();
+    }
   }
 
   loadInitialData() {
@@ -327,7 +342,7 @@ export class Dashboard implements OnInit {
         return;
       }
 
-      // Get detailed availability for available buses
+      // Get detailed availability with timing for available buses
       const detailChecks = availableBuses.map(result => 
         this.busService.getBusAvailabilityDetails(result.bus.id, this.searchCriteria.journeyDate)
           .toPromise()
@@ -337,7 +352,11 @@ export class Dashboard implements OnInit {
             return {
               ...result.bus,
               isAvailableOnDate: true,
-              availableSeats: availability?.availableSeats || (result.bus.seatingCapacity || 40) // Fallback to full capacity
+              availableSeats: availability?.availableSeats || (result.bus.seatingCapacity || 40),
+              // Override bus timing with date-specific timing if available
+              pickupTime: availability?.pickupTime || result.bus.pickupTime,
+              dropTime: availability?.dropTime || result.bus.dropTime,
+              journeyDurationHours: availability?.journeyDurationHours || result.bus.journeyDurationHours
             } as BusWithAvailability;
           })
           .catch(error => {
@@ -444,12 +463,14 @@ export class Dashboard implements OnInit {
     console.log(`Loading booked seats for bus ${busId} on ${this.searchCriteria.journeyDate}`);
     
     this.bookingService.getBookedSeats(busId, this.searchCriteria.journeyDate).subscribe({
-      next: (bookings: any[]) => {
-        console.log('Booked seats response:', bookings);
+      next: (response: any) => {
+        console.log('Booked seats response:', response);
         this.bookedSeats = [];
+        this.reservedSeats = [];
         
-        if (bookings && Array.isArray(bookings)) {
-          bookings.forEach((booking: any) => {
+        // Process confirmed bookings
+        if (response.confirmedBookings && Array.isArray(response.confirmedBookings)) {
+          response.confirmedBookings.forEach((booking: any) => {
             if (booking.seatNumbers) {
               const seats = booking.seatNumbers.split(',').map((s: string) => parseInt(s.trim()));
               this.bookedSeats.push(...seats);
@@ -457,20 +478,27 @@ export class Dashboard implements OnInit {
           });
         }
         
+        // Process reserved seats (by other users)
+        if (response.reservedSeats && Array.isArray(response.reservedSeats)) {
+          this.reservedSeats = response.reservedSeats.map((s: string) => parseInt(s.trim()));
+        }
+        
         console.log('Processed booked seats:', this.bookedSeats);
+        console.log('Processed reserved seats:', this.reservedSeats);
         this.cdr.detectChanges();
       },
       error: (error) => {
         console.error('Error loading booked seats:', error);
-        // Initialize with empty array if there's an error
+        // Initialize with empty arrays if there's an error
         this.bookedSeats = [];
+        this.reservedSeats = [];
         this.cdr.detectChanges();
       }
     });
   }
 
   toggleSeat(seatNumber: number) {
-    if (this.isSeatBooked(seatNumber)) {
+    if (this.isSeatBooked(seatNumber) || this.isSeatReserved(seatNumber)) {
       return;
     }
 
@@ -481,6 +509,14 @@ export class Dashboard implements OnInit {
       this.selectedSeats.push(seatNumber);
     }
     this.selectedSeats.sort((a, b) => a - b);
+
+    // Reserve seats when user selects them
+    if (this.selectedSeats.length > 0 && !this.reservationId) {
+      this.reserveSelectedSeats();
+    } else if (this.selectedSeats.length === 0 && this.reservationId) {
+      // Release reservation if all seats are deselected
+      this.releaseReservation();
+    }
   }
 
   isSeatSelected(seatNumber: number): boolean {
@@ -489,13 +525,20 @@ export class Dashboard implements OnInit {
 
   isSeatBooked(seatNumber: number): boolean {
     const isBooked = this.bookedSeats.includes(seatNumber);
-    // console.log(`Seat ${seatNumber} is booked: ${isBooked}`, this.bookedSeats);
     return isBooked;
+  }
+
+  isSeatReserved(seatNumber: number): boolean {
+    const isReserved = this.reservedSeats.includes(seatNumber);
+    return isReserved;
   }
 
   getSeatClass(seatNumber: number): string {
     if (this.isSeatBooked(seatNumber)) {
       return 'seat booked';
+    }
+    if (this.isSeatReserved(seatNumber)) {
+      return 'seat reserved';
     }
     if (this.isSeatSelected(seatNumber)) {
       return 'seat selected';
@@ -509,11 +552,16 @@ export class Dashboard implements OnInit {
   }
 
   closeSeatModal() {
+    this.releaseReservation();
+    this.clearReservationTimer();
     this.showSeatModal = false;
     this.selectedBus = null;
     this.selectedSeats = [];
     this.bookedSeats = [];
+    this.reservedSeats = [];
     this.bookingError = '';
+    this.reservationId = null;
+    this.remainingTime = 0;
   }
 
   confirmBooking() {
@@ -548,27 +596,75 @@ export class Dashboard implements OnInit {
         this.isBookingInProgress = true;
         this.bookingError = '';
 
-        const bookingData = {
-          userId: user.id,
-          busId: this.selectedBus!.id,
-          travelDate: new Date(this.searchCriteria.journeyDate + 'T00:00:00.000Z').toISOString(),
-          seatNumbers: this.selectedSeats.join(', '),
-          totalFare: this.getTotalFare()
-        };
-
-        this.bookingService.createBooking(bookingData).subscribe({
-          next: (response) => {
-            this.isBookingInProgress = false;
-            alert(`Booking confirmed! Booking ID: ${response.id}\nSeats: ${response.seatNumbers}\nTotal Fare: ₹${response.totalFare}`);
-            this.closeSeatModal();
+        // Get the actual timing from availability details for this date
+        this.busService.getBusAvailabilityDetails(this.selectedBus!.id, this.searchCriteria.journeyDate).subscribe({
+          next: (availabilityDetails) => {
+            const availability = availabilityDetails && availabilityDetails.length > 0 ? availabilityDetails[0] : null;
             
-            // Refresh search results to show updated availability
-            this.searchBuses();
+            const bookingData = {
+              userId: user.id,
+              busId: this.selectedBus!.id,
+              travelDate: new Date(this.searchCriteria.journeyDate + 'T00:00:00.000Z').toISOString(),
+              seatNumbers: this.selectedSeats.join(', '),
+              totalFare: this.getTotalFare(),
+              pickupLocationId: this.selectedBus!.sourceLocationId,
+              dropLocationId: this.selectedBus!.destinationLocationId,
+              scheduleId: this.selectedBus!.activeSchedules && this.selectedBus!.activeSchedules.length > 0 
+                ? this.selectedBus!.activeSchedules[0].id 
+                : null
+            };
+
+            this.bookingService.createBooking(bookingData).subscribe({
+              next: (response) => {
+                this.isBookingInProgress = false;
+                
+                // Use date-specific timing if available, otherwise fall back to bus timing
+                const actualPickupTime = availability?.pickupTime || this.selectedBus!.pickupTime;
+                const actualDropTime = availability?.dropTime || this.selectedBus!.dropTime;
+                
+                alert(`Booking confirmed! Booking ID: ${response.id}\nSeats: ${response.seatNumbers}\nPickup: ${this.formatTime(actualPickupTime)}\nDrop: ${this.formatTime(actualDropTime)}\nTotal Fare: ₹${response.totalFare}`);
+                this.closeSeatModal();
+                
+                // Refresh search results to show updated availability
+                this.searchBuses();
+              },
+              error: (error) => {
+                this.isBookingInProgress = false;
+                this.bookingError = error.message || 'Failed to create booking';
+                this.cdr.detectChanges();
+              }
+            });
           },
           error: (error) => {
-            this.isBookingInProgress = false;
-            this.bookingError = error.message || 'Failed to create booking';
-            this.cdr.detectChanges();
+            // If we can't get availability details, proceed with bus timing
+            const bookingData = {
+              userId: user.id,
+              busId: this.selectedBus!.id,
+              travelDate: new Date(this.searchCriteria.journeyDate + 'T00:00:00.000Z').toISOString(),
+              seatNumbers: this.selectedSeats.join(', '),
+              totalFare: this.getTotalFare(),
+              pickupLocationId: this.selectedBus!.sourceLocationId,
+              dropLocationId: this.selectedBus!.destinationLocationId,
+              scheduleId: this.selectedBus!.activeSchedules && this.selectedBus!.activeSchedules.length > 0 
+                ? this.selectedBus!.activeSchedules[0].id 
+                : null
+            };
+
+            this.bookingService.createBooking(bookingData).subscribe({
+              next: (response) => {
+                this.isBookingInProgress = false;
+                alert(`Booking confirmed! Booking ID: ${response.id}\nSeats: ${response.seatNumbers}\nPickup: ${this.formatTime(this.selectedBus!.pickupTime)}\nDrop: ${this.formatTime(this.selectedBus!.dropTime)}\nTotal Fare: ₹${response.totalFare}`);
+                this.closeSeatModal();
+                
+                // Refresh search results to show updated availability
+                this.searchBuses();
+              },
+              error: (error) => {
+                this.isBookingInProgress = false;
+                this.bookingError = error.message || 'Failed to create booking';
+                this.cdr.detectChanges();
+              }
+            });
           }
         });
       },
@@ -576,5 +672,113 @@ export class Dashboard implements OnInit {
         this.bookingError = 'Failed to verify availability: ' + error.message;
       }
     });
+  }
+
+  // Helper methods for time formatting
+  formatTime(timeString: string): string {
+    return this.busService.formatTime(timeString);
+  }
+
+  calculateJourneyDuration(pickupTime: string, dropTime: string): string {
+    return this.busService.calculateJourneyDuration(pickupTime, dropTime);
+  }
+
+  getOperatingDaysText(operatingDays: string): string {
+    if (!operatingDays) return 'Daily';
+    
+    const days = operatingDays.split(',').map(d => parseInt(d.trim()));
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    
+    if (days.length === 7) return 'Daily';
+    if (days.length === 5 && !days.includes(6) && !days.includes(7)) return 'Weekdays';
+    if (days.length === 2 && days.includes(6) && days.includes(7)) return 'Weekends';
+    
+    return days.map(d => dayNames[d - 1]).join(', ');
+  }
+
+  reserveSelectedSeats() {
+    if (this.isReserving || this.reservationId || !this.selectedBus) {
+      return;
+    }
+
+    const user = this.authService.getCurrentUser();
+    if (!user || !user.id) {
+      this.bookingError = 'User not logged in';
+      return;
+    }
+
+    this.isReserving = true;
+    const reserveData = {
+      userId: user.id,
+      busId: this.selectedBus.id,
+      travelDate: new Date(this.searchCriteria.journeyDate + 'T00:00:00.000Z').toISOString(),
+      seatNumbers: this.selectedSeats.join(', ')
+    };
+
+    this.bookingService.reserveSeats(reserveData).subscribe({
+      next: (response) => {
+        this.reservationId = response.reservationId;
+        this.remainingTime = response.remainingSeconds;
+        this.isReserving = false;
+        this.startReservationTimer();
+        console.log('Seats reserved successfully:', response);
+      },
+      error: (error) => {
+        this.isReserving = false;
+        this.bookingError = error.message || 'Failed to reserve seats';
+        this.selectedSeats = [];
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  releaseReservation() {
+    if (!this.reservationId) {
+      return;
+    }
+
+    const reservationIdToRelease = this.reservationId;
+    this.reservationId = null;
+    this.clearReservationTimer();
+
+    this.bookingService.releaseReservation(reservationIdToRelease).subscribe({
+      next: () => {
+        console.log('Reservation released successfully');
+      },
+      error: (error) => {
+        console.error('Error releasing reservation:', error);
+      }
+    });
+  }
+
+  startReservationTimer() {
+    this.clearReservationTimer();
+    
+    this.reservationTimer = setInterval(() => {
+      this.remainingTime--;
+      
+      if (this.remainingTime <= 0) {
+        this.clearReservationTimer();
+        this.reservationId = null;
+        this.selectedSeats = [];
+        this.bookingError = 'Reservation expired. Please select seats again.';
+        this.cdr.detectChanges();
+      } else {
+        this.cdr.detectChanges();
+      }
+    }, 1000);
+  }
+
+  clearReservationTimer() {
+    if (this.reservationTimer) {
+      clearInterval(this.reservationTimer);
+      this.reservationTimer = null;
+    }
+  }
+
+  getFormattedRemainingTime(): string {
+    const minutes = Math.floor(this.remainingTime / 60);
+    const seconds = this.remainingTime % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
 }

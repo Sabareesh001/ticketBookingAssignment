@@ -15,6 +15,10 @@ namespace BusBookingAPI.Services
         Task<BookingDto> UpdateBookingAsync(int id, UpdateBookingDto updateBookingDto);
         Task<bool> DeleteBookingAsync(int id);
         Task<List<BookingDto>> GetBookingsByDateRangeAsync(DateTime startDate, DateTime endDate);
+        Task<ReserveSeatResponse> ReserveSeatAsync(ReserveSeatDto reserveSeatDto);
+        Task<bool> ReleaseReservationAsync(int reservationId);
+        Task CleanupExpiredReservationsAsync();
+        Task<List<string>> GetReservedSeatsAsync(int busId, DateTime travelDate, int? excludeUserId = null);
     }
 
     public class BookingService : IBookingService
@@ -134,6 +138,9 @@ namespace BusBookingAPI.Services
                 throw new ArgumentException("Travel date must be in the future");
             }
 
+            // Clean up expired reservations first
+            await CleanupExpiredReservationsAsync();
+
             // Check if the date is available for booking
             var seatNumbers = createBookingDto.SeatNumbers.Split(',').Select(s => s.Trim()).ToList();
             var requiredSeats = seatNumbers.Count;
@@ -144,39 +151,77 @@ namespace BusBookingAPI.Services
                 throw new InvalidOperationException($"The selected date is not available for booking or insufficient seats available");
             }
 
-            // Validate seat availability (check if seats are already booked)
-            var existingBooking = await _context.Bookings
-                .Where(b => b.BusId == createBookingDto.BusId &&
-                           b.TravelDate.Date == travelDateUtc.Date &&
-                           b.BookingStatus == "confirmed")
-                .ToListAsync();
+            // Check if user has an active reservation for these seats
+            var userReservation = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.UserId == createBookingDto.UserId &&
+                                         b.BusId == createBookingDto.BusId &&
+                                         b.TravelDate.Date == travelDateUtc.Date &&
+                                         b.IsReserved &&
+                                         b.BookingStatus == "reserved" &&
+                                         b.ReservedUntil > DateTime.UtcNow);
 
-            foreach (var existingB in existingBooking)
+            Booking booking;
+
+            if (userReservation != null)
             {
-                var existingSeats = existingB.SeatNumbers.Split(',').Select(s => s.Trim()).ToList();
-                var overlap = seatNumbers.Intersect(existingSeats).Any();
-                if (overlap)
+                // Convert reservation to confirmed booking
+                _logger.LogInformation($"Converting reservation {userReservation.Id} to confirmed booking");
+                
+                userReservation.BookingStatus = "confirmed";
+                userReservation.IsReserved = false;
+                userReservation.ReservedUntil = null;
+                userReservation.TotalFare = createBookingDto.TotalFare;
+                userReservation.PickupLocationId = createBookingDto.PickupLocationId;
+                userReservation.DropLocationId = createBookingDto.DropLocationId;
+                userReservation.ScheduleId = createBookingDto.ScheduleId;
+                userReservation.UpdatedAt = DateTime.UtcNow;
+
+                _context.Bookings.Update(userReservation);
+                booking = userReservation;
+            }
+            else
+            {
+                // Validate seat availability (check if seats are already booked or reserved)
+                var existingBooking = await _context.Bookings
+                    .Where(b => b.BusId == createBookingDto.BusId &&
+                               b.TravelDate.Date == travelDateUtc.Date &&
+                               (b.BookingStatus == "confirmed" || 
+                                (b.BookingStatus == "reserved" && b.IsReserved && b.ReservedUntil > DateTime.UtcNow)))
+                    .ToListAsync();
+
+                foreach (var existingB in existingBooking)
                 {
-                    throw new InvalidOperationException($"Some of the requested seats are already booked for this journey");
+                    var existingSeats = existingB.SeatNumbers.Split(',').Select(s => s.Trim()).ToList();
+                    var overlap = seatNumbers.Intersect(existingSeats).Any();
+                    if (overlap)
+                    {
+                        throw new InvalidOperationException($"Some of the requested seats are already booked or reserved for this journey");
+                    }
                 }
+
+                booking = new Booking
+                {
+                    UserId = createBookingDto.UserId,
+                    BusId = createBookingDto.BusId,
+                    BookingDate = DateTime.UtcNow,
+                    TravelDate = travelDateUtc,
+                    SeatNumbers = createBookingDto.SeatNumbers,
+                    TotalFare = createBookingDto.TotalFare,
+                    BookingStatus = "confirmed",
+                    PaymentStatus = "pending",
+                    TravelStatus = "active",
+                    IsReserved = false,
+                    ReservedUntil = null,
+                    PickupLocationId = createBookingDto.PickupLocationId,
+                    DropLocationId = createBookingDto.DropLocationId,
+                    ScheduleId = createBookingDto.ScheduleId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.Bookings.Add(booking);
             }
 
-            var booking = new Booking
-            {
-                UserId = createBookingDto.UserId,
-                BusId = createBookingDto.BusId,
-                BookingDate = DateTime.UtcNow,
-                TravelDate = travelDateUtc,
-                SeatNumbers = createBookingDto.SeatNumbers,
-                TotalFare = createBookingDto.TotalFare,
-                BookingStatus = "confirmed",
-                PaymentStatus = "pending",
-                TravelStatus = "active",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
             // Update availability after successful booking
@@ -342,6 +387,158 @@ namespace BusBookingAPI.Services
                 CreatedAt = booking.CreatedAt,
                 UpdatedAt = booking.UpdatedAt
             };
+        }
+
+        public async Task<ReserveSeatResponse> ReserveSeatAsync(ReserveSeatDto reserveSeatDto)
+        {
+            _logger.LogInformation($"Reserving seats for user {reserveSeatDto.UserId} on bus {reserveSeatDto.BusId}");
+
+            // Validate that the user exists
+            var userExists = await _context.Users.AnyAsync(u => u.Id == reserveSeatDto.UserId);
+            if (!userExists)
+            {
+                throw new ArgumentException($"User with ID {reserveSeatDto.UserId} not found");
+            }
+
+            // Validate that the bus exists
+            var busExists = await _context.Buses.AnyAsync(b => b.Id == reserveSeatDto.BusId);
+            if (!busExists)
+            {
+                throw new ArgumentException($"Bus with ID {reserveSeatDto.BusId} not found");
+            }
+
+            // Ensure travel date is in UTC
+            var travelDateUtc = reserveSeatDto.TravelDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(reserveSeatDto.TravelDate, DateTimeKind.Utc)
+                : reserveSeatDto.TravelDate.ToUniversalTime();
+
+            // Clean up expired reservations first
+            await CleanupExpiredReservationsAsync();
+
+            // Check if seats are already booked or reserved
+            var seatNumbers = reserveSeatDto.SeatNumbers.Split(',').Select(s => s.Trim()).ToList();
+            var existingBookings = await _context.Bookings
+                .Where(b => b.BusId == reserveSeatDto.BusId &&
+                           b.TravelDate.Date == travelDateUtc.Date &&
+                           (b.BookingStatus == "confirmed" || 
+                            (b.BookingStatus == "reserved" && b.IsReserved && b.ReservedUntil > DateTime.UtcNow)))
+                .ToListAsync();
+
+            foreach (var existingB in existingBookings)
+            {
+                var existingSeats = existingB.SeatNumbers.Split(',').Select(s => s.Trim()).ToList();
+                var overlap = seatNumbers.Intersect(existingSeats).Any();
+                if (overlap)
+                {
+                    throw new InvalidOperationException($"Some of the requested seats are already booked or reserved");
+                }
+            }
+
+            // Create reservation (5 minutes from now)
+            var reservedUntil = DateTime.UtcNow.AddMinutes(5);
+            var reservation = new Booking
+            {
+                UserId = reserveSeatDto.UserId,
+                BusId = reserveSeatDto.BusId,
+                BookingDate = DateTime.UtcNow,
+                TravelDate = travelDateUtc,
+                SeatNumbers = reserveSeatDto.SeatNumbers,
+                TotalFare = 0, // Will be set during actual booking
+                BookingStatus = "reserved",
+                PaymentStatus = "pending",
+                TravelStatus = "active",
+                IsReserved = true,
+                ReservedUntil = reservedUntil,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.Bookings.Add(reservation);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"Seats reserved successfully with ID {reservation.Id} until {reservedUntil}");
+
+            return new ReserveSeatResponse
+            {
+                ReservationId = reservation.Id,
+                SeatNumbers = reservation.SeatNumbers,
+                ReservedUntil = reservedUntil,
+                RemainingSeconds = 300 // 5 minutes
+            };
+        }
+
+        public async Task<bool> ReleaseReservationAsync(int reservationId)
+        {
+            _logger.LogInformation($"Releasing reservation with ID {reservationId}");
+
+            var reservation = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.Id == reservationId && b.IsReserved && b.BookingStatus == "reserved");
+
+            if (reservation == null)
+            {
+                _logger.LogWarning($"Reservation with ID {reservationId} not found or already released");
+                return false;
+            }
+
+            _context.Bookings.Remove(reservation);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"Reservation with ID {reservationId} released successfully");
+            return true;
+        }
+
+        public async Task CleanupExpiredReservationsAsync()
+        {
+            _logger.LogInformation("Cleaning up expired reservations");
+
+            var expiredReservations = await _context.Bookings
+                .Where(b => b.IsReserved && 
+                           b.BookingStatus == "reserved" && 
+                           b.ReservedUntil.HasValue && 
+                           b.ReservedUntil.Value <= DateTime.UtcNow)
+                .ToListAsync();
+
+            if (expiredReservations.Any())
+            {
+                _context.Bookings.RemoveRange(expiredReservations);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation($"Cleaned up {expiredReservations.Count} expired reservations");
+            }
+        }
+
+        public async Task<List<string>> GetReservedSeatsAsync(int busId, DateTime travelDate, int? excludeUserId = null)
+        {
+            _logger.LogInformation($"Getting reserved seats for bus {busId} on {travelDate}");
+
+            var travelDateUtc = travelDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(travelDate, DateTimeKind.Utc)
+                : travelDate.ToUniversalTime();
+
+            // Clean up expired reservations first
+            await CleanupExpiredReservationsAsync();
+
+            var query = _context.Bookings
+                .Where(b => b.BusId == busId &&
+                           b.TravelDate.Date == travelDateUtc.Date &&
+                           b.IsReserved &&
+                           b.BookingStatus == "reserved" &&
+                           b.ReservedUntil > DateTime.UtcNow);
+
+            if (excludeUserId.HasValue)
+            {
+                query = query.Where(b => b.UserId != excludeUserId.Value);
+            }
+
+            var reservations = await query.ToListAsync();
+            var reservedSeats = new List<string>();
+
+            foreach (var reservation in reservations)
+            {
+                var seats = reservation.SeatNumbers.Split(',').Select(s => s.Trim()).ToList();
+                reservedSeats.AddRange(seats);
+            }
+
+            return reservedSeats;
         }
     }
 }

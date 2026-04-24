@@ -18,19 +18,37 @@ export interface BusDto {
   destinationCity: string;
   distanceKm?: number;
   estimatedDurationHours?: number;
+  
+  // Timing Information
+  operatingDays: string;
+  pickupTime: string; // HH:mm:ss format
+  dropTime: string; // HH:mm:ss format
+  journeyDurationHours: number;
+  advanceBookingDays: number;
+  
   createdAt: string;
   updatedAt: string;
+  
+  // Schedule information
+  schedules?: BusScheduleDto[];
+}
+
+export interface BusScheduleDto {
+  id: number;
+  busId: number;
+  scheduleName: string;
+  pickupTime: string; // HH:mm:ss format
+  dropTime: string; // HH:mm:ss format
+  isActive: boolean;
+  operatingDays: string;
+  effectiveFrom: string;
+  effectiveTo: string;
 }
 
 export interface AvailableBusesResponse {
   Success: boolean;
   Message: string;
   Buses: BusDto[];
-}
-
-export interface AvailableDatesResponse {
-  availableDates: string[];
-  dateAvailability: { [key: string]: number };
 }
 
 export interface BusAvailabilityDto {
@@ -40,8 +58,46 @@ export interface BusAvailabilityDto {
   totalSeats: number;
   availableSeats: number;
   isActive: boolean;
+  scheduleId?: number;
+  
+  // Date-specific timing information
+  pickupTime: string; // HH:mm:ss format or TimeSpan format
+  dropTime: string; // HH:mm:ss format or TimeSpan format
+  journeyDurationHours: number;
+  
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AvailableDateInfo {
+  date: string;
+  availableSeats: number;
+  pickupTime: string; // HH:mm:ss format
+  dropTime: string; // HH:mm:ss format
+  journeyDurationHours: number;
+  formattedPickupTime: string;
+  formattedDropTime: string;
+}
+
+export interface AvailableDatesResponse {
+  availableDates: AvailableDateInfo[];
+  dateAvailability: { [key: string]: AvailableDateInfo };
+}
+
+export interface UpdateBusAvailabilityTimingDto {
+  busId: number;
+  availableDate: string;
+  pickupTime: string; // HH:mm:ss format
+  dropTime: string; // HH:mm:ss format
+  journeyDurationHours: number;
+}
+
+export interface BulkUpdateAvailabilityTimingDto {
+  busId: number;
+  dates: string[];
+  pickupTime: string; // HH:mm:ss format
+  dropTime: string; // HH:mm:ss format
+  journeyDurationHours: number;
 }
 
 @Injectable({
@@ -61,7 +117,7 @@ export class BusService {
   }
 
   getBusAvailableDates(busId: number, startDate?: string, endDate?: string): Observable<AvailableDatesResponse> {
-    let url = `${this.apiUrl}/bus/${busId}/available-dates`;
+    let url = `${this.apiUrl}/busavailability/available-dates-with-timing/${busId}`;
     const params = [];
     
     if (startDate) params.push(`startDate=${startDate}`);
@@ -72,6 +128,22 @@ export class BusService {
     }
     
     return this.http.get<AvailableDatesResponse>(url).pipe(
+      catchError(error => this.handleError(error))
+    );
+  }
+
+  updateAvailabilityTiming(updateDto: UpdateBusAvailabilityTimingDto): Observable<any> {
+    const url = `${this.apiUrl}/busavailability/update-timing`;
+    
+    return this.http.put<any>(url, updateDto).pipe(
+      catchError(error => this.handleError(error))
+    );
+  }
+
+  bulkUpdateAvailabilityTiming(bulkUpdateDto: BulkUpdateAvailabilityTimingDto): Observable<any> {
+    const url = `${this.apiUrl}/busavailability/bulk-update-timing`;
+    
+    return this.http.put<any>(url, bulkUpdateDto).pipe(
       catchError(error => this.handleError(error))
     );
   }
@@ -98,10 +170,99 @@ export class BusService {
     );
   }
 
+  getBusSchedules(busId: number): Observable<BusScheduleDto[]> {
+    const url = `${this.apiUrl}/busschedule/bus/${busId}`;
+    
+    return this.http.get<BusScheduleDto[]>(url).pipe(
+      catchError(error => this.handleError(error))
+    );
+  }
+
+  getActiveSchedulesForDate(busId: number, date: string): Observable<BusScheduleDto[]> {
+    const url = `${this.apiUrl}/busschedule/bus/${busId}/active?date=${date}`;
+    
+    return this.http.get<BusScheduleDto[]>(url).pipe(
+      catchError(error => this.handleError(error))
+    );
+  }
+
+  formatTime(timeString: string): string {
+    if (!timeString) return '';
+    
+    // Handle .NET TimeSpan format (e.g., "08:00:00" or "08:00:00.0000000")
+    // Also handle HH:mm format
+    let timeParts: string[];
+    
+    if (timeString.includes('.')) {
+      // Remove milliseconds/ticks if present
+      timeString = timeString.split('.')[0];
+    }
+    
+    timeParts = timeString.split(':');
+    
+    if (timeParts.length >= 2) {
+      const hours = parseInt(timeParts[0]);
+      const minutes = timeParts[1];
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      return `${displayHours}:${minutes} ${ampm}`;
+    }
+    
+    return timeString;
+  }
+
+  parseTimeSpan(timeString: string): string {
+    if (!timeString) return '00:00:00';
+    
+    // If already in HH:mm:ss format, return as is
+    if (timeString.match(/^\d{2}:\d{2}:\d{2}$/)) {
+      return timeString;
+    }
+    
+    // If in .NET TimeSpan format with ticks, remove them
+    if (timeString.includes('.')) {
+      return timeString.split('.')[0];
+    }
+    
+    return timeString;
+  }
+
+  calculateJourneyDuration(pickupTime: string, dropTime: string): string {
+    if (!pickupTime || !dropTime) return '';
+    
+    const pickup = new Date(`2000-01-01T${pickupTime}`);
+    const drop = new Date(`2000-01-01T${dropTime}`);
+    
+    // Handle next day arrival
+    if (drop < pickup) {
+      drop.setDate(drop.getDate() + 1);
+    }
+    
+    const diffMs = drop.getTime() - pickup.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffHours > 0 && diffMinutes > 0) {
+      return `${diffHours}h ${diffMinutes}m`;
+    } else if (diffHours > 0) {
+      return `${diffHours}h`;
+    } else {
+      return `${diffMinutes}m`;
+    }
+  }
+
   generateBusAvailability(busId: number): Observable<any> {
-    const url = `${this.apiUrl}/bus/${busId}/generate-availability`;
+    const url = `${this.apiUrl}/busavailability/generate/${busId}`;
     
     return this.http.post<any>(url, {}).pipe(
+      catchError(error => this.handleError(error))
+    );
+  }
+
+  getAllBuses(): Observable<BusDto[]> {
+    const url = `${this.apiUrl}/bus`;
+    
+    return this.http.get<BusDto[]>(url).pipe(
       catchError(error => this.handleError(error))
     );
   }

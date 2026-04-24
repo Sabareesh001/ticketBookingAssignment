@@ -50,6 +50,29 @@
   justify-content: center;
 }
 
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: #666;
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+  color: #d32f2f;
+  background: #f8f9fa;
+}
+
+.nav-link.active {
+  color: #d32f2f;
+  background: #fff3e0;
+  font-weight: 600;
+}
+
 .nav-item {
   display: flex;
   flex-direction: column;
@@ -517,6 +540,13 @@
   font-weight: 500;
 }
 
+.timing-note {
+  font-size: 0.7rem;
+  color: #666;
+  font-style: italic;
+  margin-top: 2px;
+}
+
 .bus-actions {
   display: flex;
   gap: 1rem;
@@ -757,6 +787,12 @@
   color: #666;
 }
 
+.legend-item .seat {
+  width: 30px;
+  height: 30px;
+  font-size: 0.7rem;
+}
+
 .booking-error {
   background: #ffebee;
   color: #c62828;
@@ -860,6 +896,32 @@
   background: #d32f2f;
   color: white;
   border-color: #d32f2f;
+}
+
+.seat.reserved {
+  background: #fff3e0;
+  color: #f57c00;
+  border: 2px solid #ff9800;
+  cursor: not-allowed;
+  position: relative;
+  animation: reservedPulse 2s ease-in-out infinite;
+}
+
+.seat.reserved::after {
+  content: '⏱️';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 0.7rem;
+}
+
+@keyframes reservedPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.1);
+  }
 }
 
 .seat.booked {
@@ -1093,4 +1155,61 @@
 .search-btn:disabled:hover {
   background-color: #ccc;
   transform: none;
+}
+
+/* Reservation Timer Styles */
+.reservation-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.timer-icon {
+  font-size: 1.5rem;
+}
+
+.timer-text {
+  font-size: 0.95rem;
+}
+
+.timer-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  min-width: 80px;
+  text-align: center;
+}
+
+.timer-value.timer-warning {
+  background: #ff5252;
+  animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }

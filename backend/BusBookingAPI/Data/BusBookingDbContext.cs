@@ -20,6 +20,7 @@ namespace BusBookingAPI.Data
         public DbSet<Bus> Buses { get; set; }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<BusAvailability> BusAvailabilities { get; set; }
+        public DbSet<BusSchedule> BusSchedules { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -256,6 +257,12 @@ namespace BusBookingAPI.Data
             modelBuilder.Entity<Bus>()
                 .Property(b => b.OperatingDays).HasColumnName("operating_days");
             modelBuilder.Entity<Bus>()
+                .Property(b => b.PickupTime).HasColumnName("pickup_time");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.DropTime).HasColumnName("drop_time");
+            modelBuilder.Entity<Bus>()
+                .Property(b => b.JourneyDurationHours).HasColumnName("journey_duration_hours");
+            modelBuilder.Entity<Bus>()
                 .Property(b => b.DepartureTime).HasColumnName("departure_time");
             modelBuilder.Entity<Bus>()
                 .Property(b => b.ArrivalTime).HasColumnName("arrival_time");
@@ -315,6 +322,20 @@ namespace BusBookingAPI.Data
             modelBuilder.Entity<Booking>()
                 .Property(b => b.TravelStatus).HasColumnName("travel_status");
             modelBuilder.Entity<Booking>()
+                .Property(b => b.PickupLocationId).HasColumnName("pickup_location_id");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.DropLocationId).HasColumnName("drop_location_id");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.PickupTime).HasColumnName("pickup_time");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.DropTime).HasColumnName("drop_time");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.ScheduleId).HasColumnName("schedule_id");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.IsReserved).HasColumnName("is_reserved");
+            modelBuilder.Entity<Booking>()
+                .Property(b => b.ReservedUntil).HasColumnName("reserved_until");
+            modelBuilder.Entity<Booking>()
                 .Property(b => b.CreatedAt).HasColumnName("created_at");
             modelBuilder.Entity<Booking>()
                 .Property(b => b.UpdatedAt).HasColumnName("updated_at");
@@ -328,6 +349,21 @@ namespace BusBookingAPI.Data
                 .WithMany(bu => bu.Bookings)
                 .HasForeignKey(b => b.BusId)
                 .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.PickupLocation)
+                .WithMany()
+                .HasForeignKey(b => b.PickupLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.DropLocation)
+                .WithMany()
+                .HasForeignKey(b => b.DropLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.Schedule)
+                .WithMany(s => s.Bookings)
+                .HasForeignKey(b => b.ScheduleId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // BusAvailability configuration
             modelBuilder.Entity<BusAvailability>()
@@ -347,6 +383,14 @@ namespace BusBookingAPI.Data
             modelBuilder.Entity<BusAvailability>()
                 .Property(ba => ba.IsActive).HasColumnName("is_active");
             modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.ScheduleId).HasColumnName("schedule_id");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.PickupTime).HasColumnName("pickup_time");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.DropTime).HasColumnName("drop_time");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.JourneyDurationHours).HasColumnName("journey_duration_hours");
+            modelBuilder.Entity<BusAvailability>()
                 .Property(ba => ba.CreatedAt).HasColumnName("created_at");
             modelBuilder.Entity<BusAvailability>()
                 .Property(ba => ba.UpdatedAt).HasColumnName("updated_at");
@@ -356,8 +400,46 @@ namespace BusBookingAPI.Data
                 .HasForeignKey(ba => ba.BusId)
                 .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<BusAvailability>()
+                .HasOne(ba => ba.Schedule)
+                .WithMany(s => s.Availabilities)
+                .HasForeignKey(ba => ba.ScheduleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<BusAvailability>()
                 .HasIndex(ba => new { ba.BusId, ba.AvailableDate })
                 .IsUnique();
+
+            // BusSchedule configuration
+            modelBuilder.Entity<BusSchedule>()
+                .ToTable("bus_schedules");
+            modelBuilder.Entity<BusSchedule>()
+                .HasKey(bs => bs.Id);
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.Id).HasColumnName("id");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.BusId).HasColumnName("bus_id");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.ScheduleName).HasColumnName("schedule_name");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.PickupTime).HasColumnName("pickup_time");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.DropTime).HasColumnName("drop_time");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.IsActive).HasColumnName("is_active");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.OperatingDays).HasColumnName("operating_days");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.EffectiveFrom).HasColumnName("effective_from");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.EffectiveTo).HasColumnName("effective_to");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<BusSchedule>()
+                .Property(bs => bs.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<BusSchedule>()
+                .HasOne(bs => bs.Bus)
+                .WithMany(b => b.Schedules)
+                .HasForeignKey(bs => bs.BusId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

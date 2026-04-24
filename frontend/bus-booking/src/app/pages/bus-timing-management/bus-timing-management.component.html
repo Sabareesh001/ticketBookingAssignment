@@ -1,0 +1,175 @@
+<div class="bus-timing-management">
+  <div class="container">
+    <h2>Bus Timing Management</h2>
+    
+    <!-- Bus Selection -->
+    <div class="bus-selection">
+      <label for="busId">Select Bus:</label>
+      <select id="busId" [(ngModel)]="busId" (change)="onBusChange()" class="form-control">
+        <option value="0">Choose a bus...</option>
+        <option *ngFor="let bus of buses" [value]="bus.id">
+          {{ bus.registrationNumber }} - {{ bus.operatorName }} ({{ bus.sourceCity }} → {{ bus.destinationCity }})
+        </option>
+      </select>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading">
+      <p>Loading...</p>
+    </div>
+
+    <!-- Error Message -->
+    <div *ngIf="error" class="alert alert-danger">
+      {{ error }}
+    </div>
+
+    <!-- Success Message -->
+    <div *ngIf="success" class="alert alert-success">
+      {{ success }}
+    </div>
+
+    <!-- Single Date Update Section -->
+    <div class="single-date-update" *ngIf="!loading">
+      <h3>Update Single Date Timing</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="selectedDate">Select Date:</label>
+          <select id="selectedDate" [(ngModel)]="selectedDate" class="form-control">
+            <option value="">Choose a date...</option>
+            <option *ngFor="let dateInfo of availableDates" [value]="dateInfo.date">
+              {{ dateInfo.date }} ({{ formatTime(dateInfo.pickupTime) }} - {{ formatTime(dateInfo.dropTime) }})
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="singlePickupTime">Pickup Time:</label>
+          <input 
+            type="time" 
+            id="singlePickupTime" 
+            [(ngModel)]="singlePickupTime" 
+            class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="singleDropTime">Drop Time:</label>
+          <input 
+            type="time" 
+            id="singleDropTime" 
+            [(ngModel)]="singleDropTime" 
+            class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="singleJourneyDuration">Journey Duration (hours):</label>
+          <input 
+            type="number" 
+            id="singleJourneyDuration" 
+            [(ngModel)]="singleJourneyDuration" 
+            min="0.5" 
+            max="24" 
+            step="0.5" 
+            class="form-control">
+        </div>
+      </div>
+      <button 
+        (click)="updateSingleDateTiming()" 
+        [disabled]="loading || !selectedDate || busId === 0"
+        class="btn btn-primary">
+        Update Single Date
+      </button>
+    </div>
+
+    <!-- Bulk Update Section -->
+    <div class="bulk-update" *ngIf="!loading">
+      <h3>Bulk Update Multiple Dates</h3>
+      
+      <!-- Timing Form -->
+      <div class="timing-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="newPickupTime">New Pickup Time:</label>
+            <input 
+              type="time" 
+              id="newPickupTime" 
+              [(ngModel)]="newPickupTime" 
+              class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="newDropTime">New Drop Time:</label>
+            <input 
+              type="time" 
+              id="newDropTime" 
+              [(ngModel)]="newDropTime" 
+              class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="newJourneyDuration">Journey Duration (hours):</label>
+            <input 
+              type="number" 
+              id="newJourneyDuration" 
+              [(ngModel)]="newJourneyDuration" 
+              min="0.5" 
+              max="24" 
+              step="0.5" 
+              class="form-control">
+          </div>
+        </div>
+      </div>
+
+      <!-- Date Selection Controls -->
+      <div class="selection-controls">
+        <button (click)="selectAllDates()" class="btn btn-secondary">Select All</button>
+        <button (click)="clearSelection()" class="btn btn-secondary">Clear Selection</button>
+        <span class="selected-count">{{ selectedDates.length }} dates selected</span>
+      </div>
+
+      <!-- Available Dates Table -->
+      <div class="dates-table">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>Date</th>
+              <th>Current Pickup Time</th>
+              <th>Current Drop Time</th>
+              <th>Duration</th>
+              <th>Available Seats</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let dateInfo of availableDates">
+              <td>
+                <input 
+                  type="checkbox" 
+                  [checked]="selectedDates.includes(dateInfo.date)"
+                  (change)="onDateSelectionChange(dateInfo.date, $event)">
+              </td>
+              <td>{{ dateInfo.date }}</td>
+              <td>{{ formatTime(dateInfo.pickupTime) }}</td>
+              <td>{{ formatTime(dateInfo.dropTime) }}</td>
+              <td>{{ calculateDuration(dateInfo.pickupTime, dateInfo.dropTime) }}</td>
+              <td>{{ dateInfo.availableSeats }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Bulk Update Button -->
+      <button 
+        (click)="bulkUpdateTiming()" 
+        [disabled]="loading || selectedDates.length === 0 || busId === 0"
+        class="btn btn-success">
+        Update Selected Dates ({{ selectedDates.length }})
+      </button>
+    </div>
+
+    <!-- No Data Message -->
+    <div *ngIf="!loading && availableDates.length === 0 && busId > 0" class="no-data">
+      <p>No available dates found for this bus.</p>
+      <button (click)="generateAvailability()" class="btn btn-secondary">Generate Availability</button>
+    </div>
+
+    <!-- No Bus Selected -->
+    <div *ngIf="!loading && busId === 0" class="no-data">
+      <p>Please select a bus to manage timing.</p>
+    </div>
+  </div>
+</div>

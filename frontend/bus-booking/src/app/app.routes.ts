@@ -7,6 +7,7 @@ import { UnauthorizedComponent } from './pages/unauthorized/unauthorized.compone
 import { Dashboard } from './pages/dashboard/dashboard';
 import { OperatorSignupComponent } from './pages/operator-signup/operator-signup.component';
 import { OperatorDashboardComponent } from './pages/operator-dashboard/operator-dashboard.component';
+import { BusTimingManagementComponent } from './pages/bus-timing-management/bus-timing-management.component';
 import { AuthGuardService } from './guards/auth.guard';
 import { AuthRedirectGuard } from './guards/auth-redirect.guard';
 import { OperatorAuthGuard } from './guards/operator-auth.guard';
@@ -26,6 +27,14 @@ export const routes: Routes = [
     path: 'operator-dashboard', 
     component: OperatorDashboardComponent,
     canActivate: [OperatorAuthGuard]
+  },
+  
+  // Bus management routes
+  { 
+    path: 'bus-timing-management', 
+    component: BusTimingManagementComponent,
+    canActivate: [AuthGuardService],
+    data: { roles: [UserRole.ADMIN, UserRole.BUS_OPERATOR] }
   },
   
   // Protected routes

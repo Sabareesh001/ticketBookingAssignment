@@ -8,5 +8,8 @@ namespace BusBookingAPI.DTOs
         public string BookingStatus { get; set; }
         public string PaymentStatus { get; set; }
         public string TravelStatus { get; set; }
+        public int? PickupLocationId { get; set; }
+        public int? DropLocationId { get; set; }
+        public int? ScheduleId { get; set; }
     }
 }

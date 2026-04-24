@@ -89,12 +89,62 @@ namespace BusBookingAPI.Controllers
             {
                 _logger.LogInformation($"Getting availability details for bus {busId} on {date}");
                 var availability = await _availabilityService.GetBusAvailabilityAsync(busId, date);
+                
+                // Log the data being returned for debugging
+                _logger.LogInformation($"Returning {availability.Count} availability records");
+                if (availability.Count > 0)
+                {
+                    var first = availability[0];
+                    _logger.LogInformation($"First record - PickupTime: {first.PickupTime}, DropTime: {first.DropTime}, Duration: {first.JourneyDurationHours}");
+                }
+                
                 return Ok(availability);
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Error getting availability details: {ex.Message}");
-                return StatusCode(500, new { message = "An error occurred while retrieving availability details" });
+                _logger.LogError($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new { message = "An error occurred while retrieving availability details", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint: Get raw availability data with all fields
+        /// </summary>
+        /// <param name="busId">Bus ID</param>
+        /// <param name="date">Date to get availability for</param>
+        /// <returns>Raw availability data for debugging</returns>
+        [HttpGet("debug/{busId}")]
+        public async Task<ActionResult> GetBusAvailabilityDebug(
+            int busId, 
+            [FromQuery] DateTime date)
+        {
+            try
+            {
+                _logger.LogInformation($"DEBUG: Getting availability for bus {busId} on {date}");
+                var availability = await _availabilityService.GetBusAvailabilityAsync(busId, date);
+                
+                return Ok(new
+                {
+                    success = true,
+                    busId = busId,
+                    requestedDate = date,
+                    recordCount = availability.Count,
+                    data = availability,
+                    message = availability.Count == 0 
+                        ? "No availability records found. You may need to generate availability first." 
+                        : $"Found {availability.Count} availability record(s)"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"DEBUG ERROR: {ex.Message}");
+                return StatusCode(500, new { 
+                    success = false,
+                    message = "An error occurred", 
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
             }
         }
 
@@ -221,6 +271,95 @@ namespace BusBookingAPI.Controllers
             {
                 _logger.LogError($"Error generating availability for all buses: {ex.Message}");
                 return StatusCode(500, new { message = "An error occurred while generating availability" });
+            }
+        }
+
+        /// <summary>
+        /// Update timing for a specific bus availability date
+        /// </summary>
+        /// <param name="updateDto">Timing update details</param>
+        /// <returns>Success message</returns>
+        [HttpPut("update-timing")]
+        public async Task<ActionResult> UpdateAvailabilityTiming(UpdateBusAvailabilityTimingDto updateDto)
+        {
+            try
+            {
+                _logger.LogInformation($"Updating timing for bus {updateDto.BusId} on {updateDto.AvailableDate}");
+                var result = await _availabilityService.UpdateAvailabilityTimingAsync(updateDto);
+                
+                if (result)
+                {
+                    return Ok(new { message = "Availability timing updated successfully" });
+                }
+                
+                return StatusCode(500, new { message = "Failed to update availability timing" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning($"Availability not found: {ex.Message}");
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error updating availability timing: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while updating availability timing" });
+            }
+        }
+
+        /// <summary>
+        /// Bulk update timing for multiple dates of a bus
+        /// </summary>
+        /// <param name="bulkUpdateDto">Bulk timing update details</param>
+        /// <returns>Success message</returns>
+        [HttpPut("bulk-update-timing")]
+        public async Task<ActionResult> BulkUpdateAvailabilityTiming(BulkUpdateAvailabilityTimingDto bulkUpdateDto)
+        {
+            try
+            {
+                _logger.LogInformation($"Bulk updating timing for bus {bulkUpdateDto.BusId} for {bulkUpdateDto.Dates.Count} dates");
+                var result = await _availabilityService.BulkUpdateAvailabilityTimingAsync(bulkUpdateDto);
+                
+                return Ok(new { 
+                    message = $"Successfully updated timing for {result.UpdatedCount} out of {bulkUpdateDto.Dates.Count} dates",
+                    updatedCount = result.UpdatedCount,
+                    failedDates = result.FailedDates
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error bulk updating availability timing: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while bulk updating availability timing" });
+            }
+        }
+
+        /// <summary>
+        /// Get available dates with timing information for a specific bus
+        /// </summary>
+        /// <param name="busId">Bus ID</param>
+        /// <param name="startDate">Start date (optional, defaults to today)</param>
+        /// <param name="endDate">End date (optional, defaults to 90 days from today)</param>
+        /// <returns>Available dates with timing information</returns>
+        [HttpGet("available-dates-with-timing/{busId}")]
+        public async Task<ActionResult<AvailableDatesResponse>> GetAvailableDatesWithTiming(
+            int busId, 
+            [FromQuery] DateTime? startDate = null, 
+            [FromQuery] DateTime? endDate = null)
+        {
+            try
+            {
+                _logger.LogInformation($"Getting available dates with timing for bus {busId}");
+                var availableDates = await _availabilityService.GetAvailableDatesWithTimingAsync(busId, startDate, endDate);
+                return Ok(availableDates);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning($"Bus not found: {ex.Message}");
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting available dates with timing: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while retrieving available dates with timing" });
             }
         }
 

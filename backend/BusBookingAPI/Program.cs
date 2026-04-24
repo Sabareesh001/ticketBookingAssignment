@@ -79,6 +79,7 @@ public class Program
         builder.Services.AddScoped<IBusService, BusService>();
         builder.Services.AddScoped<IBookingService, BookingService>();
         builder.Services.AddScoped<IBusAvailabilityService, BusAvailabilityService>();
+        builder.Services.AddScoped<IBusScheduleService, BusScheduleService>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IOperatorAuthService, OperatorAuthService>();
@@ -88,6 +89,9 @@ public class Program
         builder.Services.AddScoped<ICountryService, CountryService>();
         builder.Services.AddScoped<IRouteService, RouteService>();
         builder.Services.AddScoped<IOperatorService, OperatorService>();
+
+        // Register background services
+        builder.Services.AddHostedService<ReservationCleanupService>();
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();

@@ -122,7 +122,7 @@ namespace BusBookingAPI.Controllers
         /// <param name="travelDate">Travel date (YYYY-MM-DD format)</param>
         /// <returns>List of bookings for the bus on the specified date</returns>
         [HttpGet("bus/{busId}/seats")]
-        public async Task<ActionResult<List<BookingDto>>> GetBookedSeats(int busId, [FromQuery] string travelDate)
+        public async Task<ActionResult<object>> GetBookedSeats(int busId, [FromQuery] string travelDate)
         {
             try
             {
@@ -133,15 +133,24 @@ namespace BusBookingAPI.Controllers
                     return BadRequest(new { message = "Invalid date format. Use YYYY-MM-DD format." });
                 }
 
+                // Clean up expired reservations first
+                await _bookingService.CleanupExpiredReservationsAsync();
+
                 var bookings = await _bookingService.GetBookingsByBusIdAsync(busId);
                 
-                // Filter bookings for the specific date and confirmed status
-                var dateBookings = bookings.Where(b => 
+                // Filter confirmed bookings
+                var confirmedBookings = bookings.Where(b => 
                     b.TravelDate.Date == parsedDate.Date && 
                     b.BookingStatus == "confirmed"
                 ).ToList();
 
-                return Ok(dateBookings);
+                // Get reserved seats (by other users)
+                var reservedSeats = await _bookingService.GetReservedSeatsAsync(busId, parsedDate);
+
+                return Ok(new { 
+                    confirmedBookings = confirmedBookings,
+                    reservedSeats = reservedSeats
+                });
             }
             catch (KeyNotFoundException ex)
             {
@@ -277,6 +286,82 @@ namespace BusBookingAPI.Controllers
             {
                 _logger.LogError($"Error deleting booking: {ex.Message}");
                 return StatusCode(500, new { message = "An error occurred while deleting the booking" });
+            }
+        }
+
+        /// <summary>
+        /// Reserve seats temporarily (5 minutes)
+        /// </summary>
+        /// <param name="reserveSeatDto">Reservation details</param>
+        /// <returns>Reservation confirmation with expiry time</returns>
+        [HttpPost("reserve")]
+        public async Task<ActionResult<ReserveSeatResponse>> ReserveSeats(ReserveSeatDto reserveSeatDto)
+        {
+            try
+            {
+                _logger.LogInformation("Reserving seats");
+                var reservation = await _bookingService.ReserveSeatAsync(reserveSeatDto);
+                return Ok(reservation);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning($"Invalid reservation data: {ex.Message}");
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning($"Operation error: {ex.Message}");
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error reserving seats: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while reserving seats" });
+            }
+        }
+
+        /// <summary>
+        /// Release a seat reservation
+        /// </summary>
+        /// <param name="reservationId">Reservation ID</param>
+        /// <returns>Success message</returns>
+        [HttpDelete("reserve/{reservationId}")]
+        public async Task<ActionResult> ReleaseReservation(int reservationId)
+        {
+            try
+            {
+                _logger.LogInformation($"Releasing reservation with ID {reservationId}");
+                var result = await _bookingService.ReleaseReservationAsync(reservationId);
+                if (result)
+                {
+                    return Ok(new { message = "Reservation released successfully" });
+                }
+                return NotFound(new { message = "Reservation not found or already released" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error releasing reservation: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while releasing the reservation" });
+            }
+        }
+
+        /// <summary>
+        /// Cleanup expired reservations (can be called manually or by a scheduled job)
+        /// </summary>
+        /// <returns>Success message</returns>
+        [HttpPost("cleanup-expired")]
+        public async Task<ActionResult> CleanupExpiredReservations()
+        {
+            try
+            {
+                _logger.LogInformation("Manually triggering cleanup of expired reservations");
+                await _bookingService.CleanupExpiredReservationsAsync();
+                return Ok(new { message = "Expired reservations cleaned up successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error cleaning up expired reservations: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while cleaning up expired reservations" });
             }
         }
     }

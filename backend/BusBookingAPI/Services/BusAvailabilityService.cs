@@ -32,10 +32,19 @@ namespace BusBookingAPI.Services
                     .OrderBy(ba => ba.AvailableDate)
                     .ToListAsync();
 
+                var availableDates = availabilities.Select(a => new AvailableDateInfo
+                {
+                    Date = a.AvailableDate,
+                    AvailableSeats = a.AvailableSeats,
+                    PickupTime = a.PickupTime,
+                    DropTime = a.DropTime,
+                    JourneyDurationHours = a.JourneyDurationHours
+                }).ToList();
+
                 var response = new AvailableDatesResponse
                 {
-                    AvailableDates = availabilities.Select(a => a.AvailableDate).ToList(),
-                    DateAvailability = availabilities.ToDictionary(a => a.AvailableDate, a => a.AvailableSeats)
+                    AvailableDates = availableDates,
+                    DateAvailability = availableDates.ToDictionary(a => a.Date, a => a)
                 };
 
                 return response;
@@ -117,7 +126,10 @@ namespace BusBookingAPI.Services
                                 AvailableDate = date,
                                 TotalSeats = bus.SeatingCapacity ?? 40,
                                 AvailableSeats = bus.SeatingCapacity ?? 40,
-                                IsActive = true
+                                IsActive = true,
+                                PickupTime = bus.PickupTime,
+                                DropTime = bus.DropTime,
+                                JourneyDurationHours = bus.JourneyDurationHours
                             };
 
                             _context.BusAvailabilities.Add(availability);
@@ -125,6 +137,19 @@ namespace BusBookingAPI.Services
                         else
                         {
                             existing.TotalSeats = bus.SeatingCapacity ?? 40;
+                            // Only update timing if not already set (preserve existing custom timings)
+                            if (existing.PickupTime == TimeSpan.Zero)
+                            {
+                                existing.PickupTime = bus.PickupTime;
+                            }
+                            if (existing.DropTime == TimeSpan.Zero)
+                            {
+                                existing.DropTime = bus.DropTime;
+                            }
+                            if (existing.JourneyDurationHours == 0)
+                            {
+                                existing.JourneyDurationHours = bus.JourneyDurationHours;
+                            }
                             existing.UpdatedAt = DateTime.UtcNow;
                         }
                     }
@@ -186,16 +211,140 @@ namespace BusBookingAPI.Services
 
                 return new BusScheduleDto
                 {
+                    Id = 0, // This is for the bus's default schedule
                     BusId = bus.Id,
+                    ScheduleName = "Default Schedule",
+                    PickupTime = bus.PickupTime,
+                    DropTime = bus.DropTime,
+                    IsActive = bus.IsActive,
                     OperatingDays = bus.OperatingDays,
-                    DepartureTime = bus.DepartureTime,
-                    ArrivalTime = bus.ArrivalTime,
-                    AdvanceBookingDays = bus.AdvanceBookingDays
+                    EffectiveFrom = DateTime.Today,
+                    EffectiveTo = DateTime.Today.AddDays(bus.AdvanceBookingDays)
                 };
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Error getting bus schedule for bus {busId}: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<AvailableDatesResponse> GetAvailableDatesWithTimingAsync(int busId, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            try
+            {
+                var start = startDate ?? DateTime.Today;
+                var end = endDate ?? DateTime.Today.AddDays(90);
+
+                var availabilities = await _context.BusAvailabilities
+                    .Where(ba => ba.BusId == busId && 
+                                ba.AvailableDate >= start && 
+                                ba.AvailableDate <= end && 
+                                ba.IsActive && 
+                                ba.AvailableSeats > 0)
+                    .OrderBy(ba => ba.AvailableDate)
+                    .ToListAsync();
+
+                var availableDates = availabilities.Select(a => new AvailableDateInfo
+                {
+                    Date = a.AvailableDate,
+                    AvailableSeats = a.AvailableSeats,
+                    PickupTime = a.PickupTime,
+                    DropTime = a.DropTime,
+                    JourneyDurationHours = a.JourneyDurationHours
+                }).ToList();
+
+                var response = new AvailableDatesResponse
+                {
+                    AvailableDates = availableDates,
+                    DateAvailability = availableDates.ToDictionary(a => a.Date, a => a)
+                };
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting available dates with timing for bus {busId}: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<bool> UpdateAvailabilityTimingAsync(UpdateBusAvailabilityTimingDto updateDto)
+        {
+            try
+            {
+                var availability = await _context.BusAvailabilities
+                    .FirstOrDefaultAsync(ba => ba.BusId == updateDto.BusId && 
+                                             ba.AvailableDate.Date == updateDto.AvailableDate.Date);
+
+                if (availability == null)
+                {
+                    throw new KeyNotFoundException($"No availability record found for bus {updateDto.BusId} on {updateDto.AvailableDate}");
+                }
+
+                availability.PickupTime = updateDto.PickupTime;
+                availability.DropTime = updateDto.DropTime;
+                availability.JourneyDurationHours = updateDto.JourneyDurationHours;
+                availability.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation($"Updated timing for bus {updateDto.BusId} on {updateDto.AvailableDate}");
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error updating availability timing: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<BulkUpdateResult> BulkUpdateAvailabilityTimingAsync(BulkUpdateAvailabilityTimingDto bulkUpdateDto)
+        {
+            var result = new BulkUpdateResult();
+            
+            try
+            {
+                foreach (var date in bulkUpdateDto.Dates)
+                {
+                    try
+                    {
+                        var availability = await _context.BusAvailabilities
+                            .FirstOrDefaultAsync(ba => ba.BusId == bulkUpdateDto.BusId && 
+                                                     ba.AvailableDate.Date == date.Date);
+
+                        if (availability != null)
+                        {
+                            availability.PickupTime = bulkUpdateDto.PickupTime;
+                            availability.DropTime = bulkUpdateDto.DropTime;
+                            availability.JourneyDurationHours = bulkUpdateDto.JourneyDurationHours;
+                            availability.UpdatedAt = DateTime.UtcNow;
+                            result.UpdatedCount++;
+                        }
+                        else
+                        {
+                            result.FailedDates.Add(date);
+                            _logger.LogWarning($"No availability record found for bus {bulkUpdateDto.BusId} on {date}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.FailedDates.Add(date);
+                        _logger.LogError($"Error updating timing for bus {bulkUpdateDto.BusId} on {date}: {ex.Message}");
+                    }
+                }
+
+                if (result.UpdatedCount > 0)
+                {
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"Bulk updated timing for {result.UpdatedCount} dates for bus {bulkUpdateDto.BusId}");
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in bulk update availability timing: {ex.Message}");
                 throw;
             }
         }
@@ -211,9 +360,8 @@ namespace BusBookingAPI.Services
                 }
 
                 bus.OperatingDays = scheduleDto.OperatingDays;
-                bus.DepartureTime = scheduleDto.DepartureTime;
-                bus.ArrivalTime = scheduleDto.ArrivalTime;
-                bus.AdvanceBookingDays = scheduleDto.AdvanceBookingDays;
+                bus.PickupTime = scheduleDto.PickupTime;
+                bus.DropTime = scheduleDto.DropTime;
                 bus.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
@@ -240,6 +388,10 @@ namespace BusBookingAPI.Services
                 TotalSeats = availability.TotalSeats,
                 AvailableSeats = availability.AvailableSeats,
                 IsActive = availability.IsActive,
+                ScheduleId = availability.ScheduleId,
+                PickupTime = availability.PickupTime,
+                DropTime = availability.DropTime,
+                JourneyDurationHours = availability.JourneyDurationHours,
                 CreatedAt = availability.CreatedAt,
                 UpdatedAt = availability.UpdatedAt
             };

@@ -7,6 +7,8 @@
         <span class="logo-text">Bus Tickets</span>
       </div>
       <nav class="nav-menu">
+        <a routerLink="/dashboard" class="nav-link active">🏠 Home</a>
+        <a routerLink="/bus-timing-management" class="nav-link">⏰ Bus Timing</a>
       </nav>
       <div class="header-actions">
         <div class="account-menu-container">
@@ -167,12 +169,26 @@
               <span class="detail-value">{{ bus.sourceCity }} → {{ bus.destinationCity }}</span>
             </div>
             <div class="detail-item">
+              <span class="detail-label">Pickup Time</span>
+              <span class="detail-value">{{ formatTime(bus.pickupTime) }}</span>
+              <small class="timing-note">*For {{ searchCriteria.journeyDate }}</small>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Drop Time</span>
+              <span class="detail-value">{{ formatTime(bus.dropTime) }}</span>
+              <small class="timing-note">*For {{ searchCriteria.journeyDate }}</small>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Duration</span>
+              <span class="detail-value">{{ calculateJourneyDuration(bus.pickupTime, bus.dropTime) }}</span>
+            </div>
+            <div class="detail-item">
               <span class="detail-label">Distance</span>
               <span class="detail-value">{{ bus.distanceKm || 'N/A' }} km</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">Duration</span>
-              <span class="detail-value">{{ bus.estimatedDurationHours || 'N/A' }} hrs</span>
+              <span class="detail-label">Operating Days</span>
+              <span class="detail-value">{{ getOperatingDaysText(bus.operatingDays) }}</span>
             </div>
             <div class="detail-item">
               <span class="detail-label">Total Seats</span>
@@ -230,6 +246,18 @@
             <span class="info-value">{{ searchCriteria.journeyDate }}</span>
           </div>
           <div class="info-row">
+            <span class="info-label">Pickup Time:</span>
+            <span class="info-value">{{ formatTime(selectedBus.pickupTime) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Drop Time:</span>
+            <span class="info-value">{{ formatTime(selectedBus.dropTime) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Journey Duration:</span>
+            <span class="info-value">{{ calculateJourneyDuration(selectedBus.pickupTime, selectedBus.dropTime) }}</span>
+          </div>
+          <div class="info-row">
             <span class="info-label">Price per seat:</span>
             <span class="info-value">₹{{ selectedBus.price }}</span>
           </div>
@@ -246,6 +274,10 @@
             <span>Selected</span>
           </div>
           <div class="legend-item">
+            <div class="seat reserved"></div>
+            <span>Reserved (by others)</span>
+          </div>
+          <div class="legend-item">
             <div class="seat booked"></div>
             <span>Booked</span>
           </div>
@@ -254,6 +286,13 @@
         <!-- Error Message -->
         <div *ngIf="bookingError" class="booking-error">
           {{ bookingError }}
+        </div>
+
+        <!-- Reservation Timer -->
+        <div *ngIf="reservationId && remainingTime > 0" class="reservation-timer">
+          <span class="timer-icon">⏱️</span>
+          <span class="timer-text">Seats reserved for:</span>
+          <span class="timer-value" [class.timer-warning]="remainingTime <= 60">{{ getFormattedRemainingTime() }}</span>
         </div>
 
         <!-- Seat Layout -->

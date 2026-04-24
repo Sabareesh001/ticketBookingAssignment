@@ -9,6 +9,9 @@ export interface CreateBookingRequest {
   travelDate: string; // ISO string format
   seatNumbers: string;
   totalFare: number;
+  pickupLocationId?: number | null;
+  dropLocationId?: number | null;
+  scheduleId?: number | null;
 }
 
 export interface BookingResponse {
@@ -22,8 +25,29 @@ export interface BookingResponse {
   bookingStatus: string;
   paymentStatus: string;
   travelStatus: string;
+  pickupLocationId?: number;
+  dropLocationId?: number;
+  pickupTime?: string;
+  dropTime?: string;
+  scheduleId?: number;
+  pickupLocationName?: string;
+  dropLocationName?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ReserveSeatRequest {
+  userId: number;
+  busId: number;
+  travelDate: string;
+  seatNumbers: string;
+}
+
+export interface ReserveSeatResponse {
+  reservationId: number;
+  seatNumbers: string;
+  reservedUntil: string;
+  remainingSeconds: number;
 }
 
 @Injectable({
@@ -40,13 +64,28 @@ export class BookingService {
     );
   }
 
-  getBookedSeats(busId: number, travelDate: string): Observable<any[]> {
+  getBookedSeats(busId: number, travelDate: string): Observable<any> {
     const url = `${this.apiUrl}/booking/bus/${busId}/seats?travelDate=${travelDate}`;
-    return this.http.get<any[]>(url).pipe(
+    return this.http.get<any>(url).pipe(
       catchError(error => {
         console.error('Error fetching booked seats:', error);
-        // Return empty array if there's an error (no bookings or bus not found)
-        return [];
+        // Return empty object if there's an error
+        return throwError(() => ({ confirmedBookings: [], reservedSeats: [] }));
+      })
+    );
+  }
+
+  reserveSeats(reserveData: ReserveSeatRequest): Observable<ReserveSeatResponse> {
+    return this.http.post<ReserveSeatResponse>(`${this.apiUrl}/booking/reserve`, reserveData).pipe(
+      catchError(error => this.handleError(error))
+    );
+  }
+
+  releaseReservation(reservationId: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/booking/reserve/${reservationId}`).pipe(
+      catchError(error => {
+        console.error('Error releasing reservation:', error);
+        return throwError(() => new Error('Failed to release reservation'));
       })
     );
   }

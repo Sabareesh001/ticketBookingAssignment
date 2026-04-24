@@ -12,10 +12,12 @@ CREATE TABLE IF NOT EXISTS bookings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     travel_status VARCHAR(20) DEFAULT 'active',
+    is_reserved BOOLEAN DEFAULT FALSE,
+    reserved_until TIMESTAMP NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     FOREIGN KEY (bus_id) REFERENCES buses(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CHECK (travel_date >= CURRENT_DATE),
-    CHECK (booking_status IN ('confirmed', 'cancelled', 'pending')),
+    CHECK (booking_status IN ('confirmed', 'cancelled', 'pending', 'reserved')),
     CHECK (payment_status IN ('pending', 'completed', 'failed')),
     CHECK (travel_status IN ('active', 'completed', 'cancelled'))
 );
@@ -26,3 +28,4 @@ CREATE INDEX idx_bookings_bus ON bookings(bus_id);
 CREATE INDEX idx_bookings_travel_date ON bookings(travel_date);
 CREATE INDEX idx_bookings_status ON bookings(booking_status);
 CREATE INDEX idx_bookings_payment_status ON bookings(payment_status);
+CREATE INDEX idx_bookings_reserved ON bookings(is_reserved, reserved_until);
