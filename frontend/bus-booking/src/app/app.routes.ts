@@ -6,6 +6,7 @@ import { ResetPasswordComponent } from './pages/reset-password/reset-password.co
 import { UnauthorizedComponent } from './pages/unauthorized/unauthorized.component';
 import { Dashboard } from './pages/dashboard/dashboard';
 import { OperatorSignupComponent } from './pages/operator-signup/operator-signup.component';
+import { OperatorLoginComponent } from './pages/operator-login/operator-login.component';
 import { OperatorDashboardComponent } from './pages/operator-dashboard/operator-dashboard.component';
 import { BusTimingManagementComponent } from './pages/bus-timing-management/bus-timing-management.component';
 import { AuthGuardService } from './guards/auth.guard';
@@ -22,6 +23,7 @@ export const routes: Routes = [
   { path: 'unauthorized', component: UnauthorizedComponent },
   
   // Operator routes
+  { path: 'operator-login', component: OperatorLoginComponent, canActivate: [AuthRedirectGuard] },
   { path: 'operator-signup', component: OperatorSignupComponent, canActivate: [AuthRedirectGuard] },
   { 
     path: 'operator-dashboard', 

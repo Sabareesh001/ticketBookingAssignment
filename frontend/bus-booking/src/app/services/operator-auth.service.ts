@@ -72,6 +72,11 @@ export class OperatorAuthService {
     return this.currentOperatorSubject.value;
   }
 
+  getOperatorId(): number {
+    const operator = this.getCurrentOperator();
+    return operator?.id || 0;
+  }
+
   private setToken(token: string): void {
     localStorage.setItem(this.tokenKey, token);
   }

@@ -64,6 +64,32 @@ namespace BusBookingAPI.Controllers
         }
 
         /// <summary>
+        /// Get states by country ID
+        /// </summary>
+        /// <param name="countryId">Country ID</param>
+        /// <returns>List of states for the specified country</returns>
+        [HttpGet("country/{countryId}")]
+        public async Task<ActionResult<List<StateDto>>> GetStatesByCountry(int countryId)
+        {
+            try
+            {
+                _logger.LogInformation($"Getting states for country ID {countryId}");
+                var states = await _stateService.GetStatesByCountryIdAsync(countryId);
+                return Ok(states);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning($"Country not found: {ex.Message}");
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving states: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while retrieving states" });
+            }
+        }
+
+        /// <summary>
         /// Create a new state
         /// </summary>
         /// <param name="createStateDto">State data to create</param>

@@ -18,7 +18,7 @@ export class OperatorAuthGuard implements CanActivate {
       return true;
     }
 
-    // Not logged in, redirect to login page
+    // Not logged in, redirect to login
     this.router.navigate(['/login']);
     return false;
   }

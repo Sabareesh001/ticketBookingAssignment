@@ -1,0 +1,22 @@
+========================================
+QUICK FIX - Run this in Browser Console
+========================================
+
+Open your browser console (F12 -> Console tab) and paste this:
+
+// Clear the CORRECT operator token keys
+localStorage.removeItem('operator_auth_token');
+localStorage.removeItem('current_operator');
+localStorage.removeItem('operator_token');
+localStorage.removeItem('operator_user');
+console.log('✅ Tokens cleared!');
+console.log('Now navigate to /operator-login and log in again');
+
+========================================
+
+After running this:
+1. Navigate to /operator-login
+2. Log in with your operator credentials
+3. The dashboard should load with all data
+
+========================================

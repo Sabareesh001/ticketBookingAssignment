@@ -44,6 +44,32 @@ namespace BusBookingAPI.Controllers
         }
 
         /// <summary>
+        /// Get route details with district names by ID
+        /// </summary>
+        /// <param name="id">Route ID</param>
+        /// <returns>Route details with district names</returns>
+        [HttpGet("{id}/details")]
+        public async Task<ActionResult<RouteDetailDto>> GetRouteDetails(int id)
+        {
+            try
+            {
+                _logger.LogInformation($"Getting route details with ID {id}");
+                var route = await _routeService.GetRouteDetailByIdAsync(id);
+                return Ok(route);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning($"Route not found: {ex.Message}");
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving route details: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while retrieving the route details" });
+            }
+        }
+
+        /// <summary>
         /// Get all routes
         /// </summary>
         /// <returns>List of all routes</returns>
@@ -60,6 +86,26 @@ namespace BusBookingAPI.Controllers
             {
                 _logger.LogError($"Error retrieving routes: {ex.Message}");
                 return StatusCode(500, new { message = "An error occurred while retrieving routes" });
+            }
+        }
+
+        /// <summary>
+        /// Get all routes with district details
+        /// </summary>
+        /// <returns>List of all routes with district names</returns>
+        [HttpGet("details/all")]
+        public async Task<ActionResult<List<RouteDetailDto>>> GetAllRouteDetails()
+        {
+            try
+            {
+                _logger.LogInformation("Getting all route details");
+                var routes = await _routeService.GetAllRouteDetailsAsync();
+                return Ok(routes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving route details: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while retrieving route details" });
             }
         }
 

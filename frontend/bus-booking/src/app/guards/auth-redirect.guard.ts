@@ -23,9 +23,9 @@ export class AuthRedirectGuard implements CanActivate {
       return false;
     }
 
-    // If operator is logged in, redirect to operator dashboard
+    // If operator is logged in, redirect to dashboard
     if (this.operatorAuthService.hasToken()) {
-      this.router.navigate(['/operator-dashboard']);
+      this.router.navigate(['/dashboard']);
       return false;
     }
 

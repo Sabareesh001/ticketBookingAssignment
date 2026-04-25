@@ -7,11 +7,11 @@ namespace BusBookingAPI.DTOs
         public int BusId { get; set; }
         public DateTime BookingDate { get; set; }
         public DateTime TravelDate { get; set; }
-        public string SeatNumbers { get; set; }
+        public string SeatNumbers { get; set; } = string.Empty;
         public decimal TotalFare { get; set; }
-        public string BookingStatus { get; set; }
-        public string PaymentStatus { get; set; }
-        public string TravelStatus { get; set; }
+        public string BookingStatus { get; set; } = string.Empty;
+        public string PaymentStatus { get; set; } = string.Empty;
+        public string TravelStatus { get; set; } = string.Empty;
         
         // Pickup and Drop Information
         public int? PickupLocationId { get; set; }
@@ -19,8 +19,8 @@ namespace BusBookingAPI.DTOs
         public TimeSpan? PickupTime { get; set; }
         public TimeSpan? DropTime { get; set; }
         public int? ScheduleId { get; set; }
-        public string PickupLocationName { get; set; }
-        public string DropLocationName { get; set; }
+        public string PickupLocationName { get; set; } = string.Empty;
+        public string DropLocationName { get; set; } = string.Empty;
         
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

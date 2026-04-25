@@ -5,8 +5,6 @@ namespace BusBookingAPI.Models
         public int Id { get; set; }
         public int BusId { get; set; }
         public string ScheduleName { get; set; } = "Default Schedule";
-        public TimeSpan PickupTime { get; set; }
-        public TimeSpan DropTime { get; set; }
         public bool IsActive { get; set; } = true;
         public string OperatingDays { get; set; } = "1,2,3,4,5,6,7"; // 1=Monday, 7=Sunday
         public DateTime EffectiveFrom { get; set; } = DateTime.Today;

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Operator 401 Error</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #d32f2f;
+        }
+        .error-box {
+            background: #ffebee;
+            border-left: 4px solid #d32f2f;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .solution-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .danger {
+            background: #d32f2f;
+        }
+        .danger:hover {
+            background: #c62828;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status.info {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Operator 401 Error</h1>
+        
+        <div class="error-box">
+            <h3>Problem Detected:</h3>
+            <p>Your operator authentication token has expired. The endpoints returning 401 errors are:</p>
+            <ul>
+                <li><code>/api/operator-dashboard/locations</code></li>
+                <li><code>/api/operator-dashboard/routes</code></li>
+                <li><code>/api/operator-dashboard/available-locations</code></li>
+                <li><code>/api/operator-dashboard/buses</code></li>
+            </ul>
+            <p><strong>These are OPERATOR DASHBOARD endpoints that require valid authentication.</strong></p>
+        </div>
+
+        <div class="solution-box">
+            <h3>Solution:</h3>
+            <p>Click the button below to clear your expired operator token and refresh the page.</p>
+        </div>
+
+        <div id="status"></div>
+
+        <button onclick="checkTokens()">1. Check Token Status</button>
+        <button onclick="clearOperatorToken()" class="danger">2. Clear Expired Token</button>
+        <button onclick="clearAllTokens()" class="danger">3. Clear All Tokens</button>
+        <button onclick="window.location.reload()">4. Refresh Page</button>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+        }
+
+        function checkTokens() {
+            const operatorToken = localStorage.getItem('operator_auth_token');
+            const operatorUser = localStorage.getItem('current_operator');
+            const authToken = localStorage.getItem('auth_token');
+            const currentUser = localStorage.getItem('current_user');
+
+            let message = '<h4>Token Status:</h4><ul>';
+            message += '<li><strong>Correct Keys:</strong> operator_auth_token, current_operator</li>';
+            
+            if (operatorToken) {
+                try {
+                    const payload = JSON.parse(atob(operatorToken.split('.')[1]));
+                    const exp = new Date(payload.exp * 1000);
+                    const now = new Date();
+                    const isExpired = now >= exp;
+                    
+                    message += `<li><strong>Operator Token (operator_auth_token):</strong> ${isExpired ? '❌ EXPIRED' : '✅ Valid'}</li>`;
+                    message += `<li>Expires at: ${exp.toLocaleString()}</li>`;
+                    message += `<li>Current time: ${now.toLocaleString()}</li>`;
+                } catch (e) {
+                    message += '<li><strong>Operator Token:</strong> ❌ Invalid format</li>';
+                }
+            } else {
+                message += '<li><strong>Operator Token (operator_auth_token):</strong> ❌ Not found</li>';
+            }
+
+            if (operatorUser) {
+                message += '<li><strong>Operator User (current_operator):</strong> ✅ Found</li>';
+            } else {
+                message += '<li><strong>Operator User (current_operator):</strong> ❌ Not found</li>';
+            }
+
+            if (authToken) {
+                message += '<li><strong>Auth Token:</strong> Found</li>';
+            }
+
+            if (currentUser) {
+                message += '<li><strong>Current User:</strong> Found</li>';
+            }
+
+            message += '</ul>';
+            showStatus(message, 'info');
+        }
+
+        function clearOperatorToken() {
+            // Clear the CORRECT keys
+            localStorage.removeItem('operator_auth_token');
+            localStorage.removeItem('current_operator');
+            // Also clear old/wrong keys just in case
+            localStorage.removeItem('operator_token');
+            localStorage.removeItem('operator_user');
+            showStatus('✅ Operator tokens cleared (correct keys)! Now click "Refresh Page" or log in again.', 'success');
+        }
+
+        function clearAllTokens() {
+            localStorage.removeItem('operator_auth_token');
+            localStorage.removeItem('current_operator');
+            localStorage.removeItem('operator_token');
+            localStorage.removeItem('operator_user');
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('current_user');
+            showStatus('✅ All tokens cleared! Now click "Refresh Page" or log in again.', 'success');
+        }
+
+        // Auto-check on load
+        window.onload = function() {
+            checkTokens();
+        };
+    </script>
+</body>
+</html>

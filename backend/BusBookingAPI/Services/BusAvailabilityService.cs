@@ -24,10 +24,10 @@ namespace BusBookingAPI.Services
                 var end = endDate ?? DateTime.Today.AddDays(90);
 
                 var availabilities = await _context.BusAvailabilities
-                    .Where(ba => ba.BusId == busId && 
-                                ba.AvailableDate >= start && 
-                                ba.AvailableDate <= end && 
-                                ba.IsActive && 
+                    .Where(ba => ba.BusId == busId &&
+                                ba.AvailableDate >= start &&
+                                ba.AvailableDate <= end &&
+                                ba.IsActive &&
                                 ba.AvailableSeats > 0)
                     .OrderBy(ba => ba.AvailableDate)
                     .ToListAsync();
@@ -35,10 +35,7 @@ namespace BusBookingAPI.Services
                 var availableDates = availabilities.Select(a => new AvailableDateInfo
                 {
                     Date = a.AvailableDate,
-                    AvailableSeats = a.AvailableSeats,
-                    PickupTime = a.PickupTime,
-                    DropTime = a.DropTime,
-                    JourneyDurationHours = a.JourneyDurationHours
+                    AvailableSeats = a.AvailableSeats
                 }).ToList();
 
                 var response = new AvailableDatesResponse
@@ -78,8 +75,8 @@ namespace BusBookingAPI.Services
             try
             {
                 var availability = await _context.BusAvailabilities
-                    .FirstOrDefaultAsync(ba => ba.BusId == busId && 
-                                             ba.AvailableDate.Date == date.Date && 
+                    .FirstOrDefaultAsync(ba => ba.BusId == busId &&
+                                             ba.AvailableDate.Date == date.Date &&
                                              ba.IsActive);
 
                 return availability != null && availability.AvailableSeats >= requiredSeats;
@@ -117,7 +114,7 @@ namespace BusBookingAPI.Services
                     if (operatingDays.Contains(adjustedDayOfWeek))
                     {
                         var existing = existingAvailabilities.FirstOrDefault(ea => ea.AvailableDate.Date == date.Date);
-                        
+
                         if (existing == null)
                         {
                             var availability = new BusAvailability
@@ -126,10 +123,7 @@ namespace BusBookingAPI.Services
                                 AvailableDate = date,
                                 TotalSeats = bus.SeatingCapacity ?? 40,
                                 AvailableSeats = bus.SeatingCapacity ?? 40,
-                                IsActive = true,
-                                PickupTime = bus.PickupTime,
-                                DropTime = bus.DropTime,
-                                JourneyDurationHours = bus.JourneyDurationHours
+                                IsActive = true
                             };
 
                             _context.BusAvailabilities.Add(availability);
@@ -137,19 +131,6 @@ namespace BusBookingAPI.Services
                         else
                         {
                             existing.TotalSeats = bus.SeatingCapacity ?? 40;
-                            // Only update timing if not already set (preserve existing custom timings)
-                            if (existing.PickupTime == TimeSpan.Zero)
-                            {
-                                existing.PickupTime = bus.PickupTime;
-                            }
-                            if (existing.DropTime == TimeSpan.Zero)
-                            {
-                                existing.DropTime = bus.DropTime;
-                            }
-                            if (existing.JourneyDurationHours == 0)
-                            {
-                                existing.JourneyDurationHours = bus.JourneyDurationHours;
-                            }
                             existing.UpdatedAt = DateTime.UtcNow;
                         }
                     }
@@ -214,8 +195,6 @@ namespace BusBookingAPI.Services
                     Id = 0, // This is for the bus's default schedule
                     BusId = bus.Id,
                     ScheduleName = "Default Schedule",
-                    PickupTime = bus.PickupTime,
-                    DropTime = bus.DropTime,
                     IsActive = bus.IsActive,
                     OperatingDays = bus.OperatingDays,
                     EffectiveFrom = DateTime.Today,
@@ -237,10 +216,10 @@ namespace BusBookingAPI.Services
                 var end = endDate ?? DateTime.Today.AddDays(90);
 
                 var availabilities = await _context.BusAvailabilities
-                    .Where(ba => ba.BusId == busId && 
-                                ba.AvailableDate >= start && 
-                                ba.AvailableDate <= end && 
-                                ba.IsActive && 
+                    .Where(ba => ba.BusId == busId &&
+                                ba.AvailableDate >= start &&
+                                ba.AvailableDate <= end &&
+                                ba.IsActive &&
                                 ba.AvailableSeats > 0)
                     .OrderBy(ba => ba.AvailableDate)
                     .ToListAsync();
@@ -274,7 +253,7 @@ namespace BusBookingAPI.Services
             try
             {
                 var availability = await _context.BusAvailabilities
-                    .FirstOrDefaultAsync(ba => ba.BusId == updateDto.BusId && 
+                    .FirstOrDefaultAsync(ba => ba.BusId == updateDto.BusId &&
                                              ba.AvailableDate.Date == updateDto.AvailableDate.Date);
 
                 if (availability == null)
@@ -302,7 +281,7 @@ namespace BusBookingAPI.Services
         public async Task<BulkUpdateResult> BulkUpdateAvailabilityTimingAsync(BulkUpdateAvailabilityTimingDto bulkUpdateDto)
         {
             var result = new BulkUpdateResult();
-            
+
             try
             {
                 foreach (var date in bulkUpdateDto.Dates)
@@ -310,7 +289,7 @@ namespace BusBookingAPI.Services
                     try
                     {
                         var availability = await _context.BusAvailabilities
-                            .FirstOrDefaultAsync(ba => ba.BusId == bulkUpdateDto.BusId && 
+                            .FirstOrDefaultAsync(ba => ba.BusId == bulkUpdateDto.BusId &&
                                                      ba.AvailableDate.Date == date.Date);
 
                         if (availability != null)
@@ -360,8 +339,6 @@ namespace BusBookingAPI.Services
                 }
 
                 bus.OperatingDays = scheduleDto.OperatingDays;
-                bus.PickupTime = scheduleDto.PickupTime;
-                bus.DropTime = scheduleDto.DropTime;
                 bus.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
@@ -389,9 +366,6 @@ namespace BusBookingAPI.Services
                 AvailableSeats = availability.AvailableSeats,
                 IsActive = availability.IsActive,
                 ScheduleId = availability.ScheduleId,
-                PickupTime = availability.PickupTime,
-                DropTime = availability.DropTime,
-                JourneyDurationHours = availability.JourneyDurationHours,
                 CreatedAt = availability.CreatedAt,
                 UpdatedAt = availability.UpdatedAt
             };

@@ -22,7 +22,6 @@ namespace BusBookingAPI.Services
             {
                 var schedules = await _context.BusSchedules
                     .Where(bs => bs.BusId == busId)
-                    .OrderBy(bs => bs.PickupTime)
                     .ToListAsync();
 
                 return schedules.Select(MapToDto).ToList();
@@ -68,8 +67,6 @@ namespace BusBookingAPI.Services
                 {
                     BusId = createScheduleDto.BusId,
                     ScheduleName = createScheduleDto.ScheduleName,
-                    PickupTime = createScheduleDto.PickupTime,
-                    DropTime = createScheduleDto.DropTime,
                     OperatingDays = createScheduleDto.OperatingDays,
                     EffectiveFrom = createScheduleDto.EffectiveFrom ?? DateTime.Today,
                     EffectiveTo = createScheduleDto.EffectiveTo ?? DateTime.Today.AddYears(1),
@@ -100,8 +97,6 @@ namespace BusBookingAPI.Services
                 }
 
                 schedule.ScheduleName = updateScheduleDto.ScheduleName;
-                schedule.PickupTime = updateScheduleDto.PickupTime;
-                schedule.DropTime = updateScheduleDto.DropTime;
                 schedule.IsActive = updateScheduleDto.IsActive;
                 schedule.OperatingDays = updateScheduleDto.OperatingDays;
                 schedule.EffectiveFrom = updateScheduleDto.EffectiveFrom;
@@ -156,7 +151,6 @@ namespace BusBookingAPI.Services
                                 bs.EffectiveFrom <= date &&
                                 bs.EffectiveTo >= date &&
                                 bs.OperatingDays.Contains(adjustedDayOfWeek.ToString()))
-                    .OrderBy(bs => bs.PickupTime)
                     .ToListAsync();
 
                 return schedules.Select(MapToDto).ToList();
@@ -175,8 +169,6 @@ namespace BusBookingAPI.Services
                 Id = schedule.Id,
                 BusId = schedule.BusId,
                 ScheduleName = schedule.ScheduleName,
-                PickupTime = schedule.PickupTime,
-                DropTime = schedule.DropTime,
                 IsActive = schedule.IsActive,
                 OperatingDays = schedule.OperatingDays,
                 EffectiveFrom = schedule.EffectiveFrom,

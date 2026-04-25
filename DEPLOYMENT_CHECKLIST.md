@@ -1,421 +1,406 @@
-# Seat Blocking Feature - Deployment Checklist
+# Bus Operator Dashboard - Deployment Checklist
 
-## Pre-Deployment Checks
+## Pre-Deployment Verification
 
-### Database
-- [ ] Backup current database
-  ```bash
-  pg_dump -U postgres busBooking > backup_before_seat_blocking.sql
-  ```
-- [ ] Review migration script: `database/MIGRATION_SEAT_BLOCKING.sql`
-- [ ] Test migration on development database first
-- [ ] Verify no active bookings will be affected
+### Backend (.NET)
 
-### Backend
-- [ ] All files compile without errors
-- [ ] No breaking changes to existing APIs
-- [ ] Background service registered in Program.cs
-- [ ] Environment variables configured (if any)
-- [ ] Logging configured properly
+- [ ] **Code Compilation**
+  - [ ] No compilation errors
+  - [ ] No warnings
+  - [ ] All NuGet packages restored
+  - [ ] Target framework: .NET 10
 
-### Frontend
-- [ ] All TypeScript files compile without errors
-- [ ] No console errors in development
-- [ ] Timer displays correctly
-- [ ] Responsive design works on mobile
+- [ ] **Database**
+  - [ ] Migrations applied
+  - [ ] Tables created: BusOperators, Locations, Countries, States, Districts
+  - [ ] Foreign key relationships established
+  - [ ] Indexes created for performance
+  - [ ] Sample data inserted (optional)
+
+- [ ] **Configuration**
+  - [ ] JWT secret configured (min 32 characters)
+  - [ ] JWT issuer set correctly
+  - [ ] JWT audience set correctly
+  - [ ] JWT expiration set (60 minutes)
+  - [ ] Database connection string correct
+  - [ ] CORS policy configured
+  - [ ] Logging configured
+
+- [ ] **Services Registration**
+  - [ ] IOperatorDashboardService registered
+  - [ ] IOperatorAuthService registered
+  - [ ] ILocationService registered
+  - [ ] All other services registered
+
+- [ ] **Controllers**
+  - [ ] OperatorDashboardController created
+  - [ ] All endpoints implemented
+  - [ ] Authorization attributes applied
+  - [ ] Error handling implemented
+  - [ ] Logging implemented
+
+- [ ] **Security**
+  - [ ] JWT authentication configured
+  - [ ] Authorization middleware enabled
+  - [ ] CORS properly configured
+  - [ ] HTTPS enforced (production)
+  - [ ] SQL injection prevention (EF Core)
+  - [ ] Input validation implemented
+
+- [ ] **Testing**
+  - [ ] Unit tests pass (if applicable)
+  - [ ] Integration tests pass (if applicable)
+  - [ ] API endpoints tested with Postman/cURL
+  - [ ] Error scenarios tested
+  - [ ] Edge cases tested
+
+### Frontend (Angular)
+
+- [ ] **Code Compilation**
+  - [ ] No TypeScript errors
+  - [ ] No linting errors
+  - [ ] No build warnings
+  - [ ] Angular version compatible
+
+- [ ] **Components**
+  - [ ] OperatorDashboardComponent created
+  - [ ] Template HTML valid
+  - [ ] Styles applied correctly
+  - [ ] Responsive design verified
+
+- [ ] **Services**
+  - [ ] OperatorDashboardService created
+  - [ ] LocationService created
+  - [ ] API URLs correct
+  - [ ] Error handling implemented
+  - [ ] Observables properly managed
+
+- [ ] **Guards**
+  - [ ] OperatorAuthGuard created
+  - [ ] Guard logic correct
+  - [ ] Redirects working
+
+- [ ] **Routing**
+  - [ ] /operator-dashboard route added
+  - [ ] Guard applied to route
+  - [ ] Redirects after login working
+  - [ ] Redirects after signup working
+
+- [ ] **Forms**
+  - [ ] Form validation working
+  - [ ] Error messages displaying
+  - [ ] Cascading dropdowns working
+  - [ ] Form submission working
+
+- [ ] **UI/UX**
+  - [ ] Toast notifications working
+  - [ ] Loading states displaying
+  - [ ] Empty states displaying
+  - [ ] Pagination working
+  - [ ] Modal opening/closing
+  - [ ] Responsive design verified
+
+- [ ] **Testing**
+  - [ ] Component tests pass (if applicable)
+  - [ ] Service tests pass (if applicable)
+  - [ ] Manual testing completed
+  - [ ] Cross-browser testing done
+  - [ ] Mobile testing done
 
 ## Deployment Steps
 
-### Step 1: Database Migration
-```bash
-# Connect to database
-psql -U postgres -d busBooking
+### Backend Deployment
 
-# Run migration
-\i database/MIGRATION_SEAT_BLOCKING.sql
-
-# Verify changes
-\d bookings
-
-# Check new columns exist
-SELECT column_name, data_type 
-FROM information_schema.columns 
-WHERE table_name = 'bookings' 
-AND column_name IN ('is_reserved', 'reserved_until');
-
-# Check index created
-\di idx_bookings_reserved
-```
-
-**Expected Output:**
-```
-column_name    | data_type
----------------+-----------
-is_reserved    | boolean
-reserved_until | timestamp
-
-Index "public.idx_bookings_reserved"
-```
-
-- [ ] Migration completed successfully
-- [ ] Columns added
-- [ ] Index created
-- [ ] Constraint updated
-
-### Step 2: Backend Deployment
-```bash
-cd backend/BusBookingAPI
-
-# Clean and build
-dotnet clean
-dotnet build
-
-# Run tests (if any)
-dotnet test
-
-# Publish for production
-dotnet publish -c Release -o ./publish
-
-# Start application
-dotnet run
-```
-
-**Verify:**
-- [ ] Application starts without errors
-- [ ] Check logs for "Reservation Cleanup Service started"
-- [ ] Swagger UI accessible at http://localhost:5266
-- [ ] New endpoints visible in Swagger:
-  - POST /api/booking/reserve
-  - DELETE /api/booking/reserve/{id}
-  - POST /api/booking/cleanup-expired
-
-### Step 3: Frontend Deployment
-```bash
-cd frontend/bus-booking
-
-# Install dependencies (if needed)
-npm install
-
-# Build for production
-npm run build
-
-# Or start development server
-npm start
-```
-
-**Verify:**
-- [ ] Application builds without errors
-- [ ] No TypeScript compilation errors
-- [ ] No console errors on page load
-
-### Step 4: Integration Testing
-
-#### Test 1: Basic Reservation Flow
-1. [ ] Search for buses
-2. [ ] Select a bus
-3. [ ] Select seats (1, 2, 3)
-4. [ ] Verify timer appears showing 5:00
-5. [ ] Wait 10 seconds
-6. [ ] Verify timer shows 4:50
-7. [ ] Complete booking
-8. [ ] Verify booking confirmed
-
-#### Test 2: Reservation Expiry
-1. [ ] Search for buses
-2. [ ] Select a bus
-3. [ ] Select seats (4, 5)
-4. [ ] Wait for timer to reach 0:00
-5. [ ] Verify seats are deselected
-6. [ ] Verify error message appears
-7. [ ] Verify seats can be selected again
-
-#### Test 3: Modal Close
-1. [ ] Search for buses
-2. [ ] Select a bus
-3. [ ] Select seats (6, 7)
-4. [ ] Close modal
-5. [ ] Reopen modal
-6. [ ] Verify seats are available again
-
-#### Test 4: Concurrent Users
-1. [ ] Open two browser windows
-2. [ ] Window A: Select seats (8, 9)
-3. [ ] Window B: Try to select seat 8
-4. [ ] Verify Window B shows seat 8 as booked
-5. [ ] Window A: Close modal
-6. [ ] Window B: Refresh seat view
-7. [ ] Verify Window B can now select seat 8
-
-#### Test 5: Background Cleanup
-1. [ ] Create a reservation via API
-2. [ ] Wait 6 minutes
-3. [ ] Check database for expired reservations
-   ```sql
-   SELECT * FROM bookings 
-   WHERE is_reserved = true 
-   AND reserved_until <= NOW();
+1. [ ] **Build**
+   ```bash
+   dotnet build --configuration Release
    ```
-4. [ ] Verify no expired reservations exist
 
-### Step 5: API Testing
+2. [ ] **Publish**
+   ```bash
+   dotnet publish --configuration Release --output ./publish
+   ```
 
-#### Test Reserve Endpoint
-```bash
-curl -X POST http://localhost:5266/api/booking/reserve \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userId": 1,
-    "busId": 5,
-    "travelDate": "2026-05-01T00:00:00Z",
-    "seatNumbers": "10, 11"
-  }'
-```
+3. [ ] **Database Migration**
+   ```bash
+   dotnet ef database update
+   ```
 
-**Expected Response:**
-```json
-{
-  "reservationId": 123,
-  "seatNumbers": "10, 11",
-  "reservedUntil": "2026-04-24T10:35:00Z",
-  "remainingSeconds": 300
-}
-```
+4. [ ] **Deploy to Server**
+   - [ ] Copy published files to server
+   - [ ] Set environment variables
+   - [ ] Configure IIS/Kestrel
+   - [ ] Set up SSL certificate
+   - [ ] Configure firewall rules
 
-- [ ] Status: 200 OK
-- [ ] Response contains reservationId
-- [ ] reservedUntil is ~5 minutes in future
+5. [ ] **Verify Deployment**
+   - [ ] API responds to requests
+   - [ ] Database connection working
+   - [ ] Authentication working
+   - [ ] Logging working
 
-#### Test Release Endpoint
-```bash
-curl -X DELETE http://localhost:5266/api/booking/reserve/123
-```
+### Frontend Deployment
 
-**Expected Response:**
-```json
-{
-  "message": "Reservation released successfully"
-}
-```
+1. [ ] **Build**
+   ```bash
+   ng build --configuration production
+   ```
 
-- [ ] Status: 200 OK
-- [ ] Reservation deleted from database
+2. [ ] **Verify Build Output**
+   - [ ] dist/ folder created
+   - [ ] No errors in build
+   - [ ] Bundle size acceptable
+   - [ ] Source maps generated (optional)
 
-#### Test Cleanup Endpoint
-```bash
-curl -X POST http://localhost:5266/api/booking/cleanup-expired
-```
+3. [ ] **Deploy to Server**
+   - [ ] Copy dist/ contents to web server
+   - [ ] Configure web server (nginx/Apache)
+   - [ ] Set up SSL certificate
+   - [ ] Configure CORS headers
+   - [ ] Set up redirects for SPA
 
-**Expected Response:**
-```json
-{
-  "message": "Expired reservations cleaned up successfully"
-}
-```
+4. [ ] **Verify Deployment**
+   - [ ] Application loads
+   - [ ] API calls working
+   - [ ] Authentication working
+   - [ ] Routing working
 
-- [ ] Status: 200 OK
-- [ ] Expired reservations removed
+## Post-Deployment Testing
 
-## Post-Deployment Verification
+### Functional Testing
 
-### Database Checks
-```sql
--- Check for any orphaned reservations
-SELECT COUNT(*) FROM bookings 
-WHERE is_reserved = true 
-AND reserved_until <= NOW();
--- Should be 0
+- [ ] **Authentication**
+  - [ ] Operator can log in
+  - [ ] Operator redirected to dashboard
+  - [ ] Invalid credentials rejected
+  - [ ] Token expires correctly
+  - [ ] Logout works
 
--- Check active reservations
-SELECT COUNT(*) FROM bookings 
-WHERE is_reserved = true 
-AND reserved_until > NOW();
--- Should match current user activity
+- [ ] **Locations Manager**
+  - [ ] Can view locations
+  - [ ] Can create location
+  - [ ] Can edit location
+  - [ ] Can delete location
+  - [ ] Pagination works
+  - [ ] Dropdowns cascade correctly
 
--- Check confirmed bookings not affected
-SELECT COUNT(*) FROM bookings 
-WHERE booking_status = 'confirmed' 
-AND is_reserved = false;
--- Should match pre-deployment count
-```
+- [ ] **Data Integrity**
+  - [ ] Only operator's locations shown
+  - [ ] Cannot access other operators' locations
+  - [ ] Data persists after refresh
+  - [ ] Timestamps correct
 
-- [ ] No orphaned reservations
-- [ ] Active reservations match user activity
-- [ ] Existing bookings unaffected
+- [ ] **Error Handling**
+  - [ ] Network errors handled
+  - [ ] Validation errors shown
+  - [ ] 404 errors handled
+  - [ ] 401 errors redirect to login
+  - [ ] 500 errors shown gracefully
 
-### Log Checks
-```bash
-# Check backend logs
-tail -f backend/BusBookingAPI/logs/app-*.txt
+### Performance Testing
 
-# Look for:
-# - "Reservation Cleanup Service started"
-# - "Reserving seats"
-# - "Cleaned up X expired reservations"
-# - No error messages
-```
+- [ ] **Load Time**
+  - [ ] Dashboard loads in < 3 seconds
+  - [ ] API responses < 500ms
+  - [ ] No memory leaks
 
-- [ ] Cleanup service started
-- [ ] Reservation operations logged
-- [ ] No unexpected errors
+- [ ] **Scalability**
+  - [ ] 100+ locations load correctly
+  - [ ] Pagination handles large datasets
+  - [ ] No performance degradation
 
-### Performance Checks
-```sql
--- Check query performance
-EXPLAIN ANALYZE 
-SELECT * FROM bookings 
-WHERE is_reserved = true 
-AND reserved_until > NOW();
+### Security Testing
 
--- Should use idx_bookings_reserved index
-```
+- [ ] **Authentication**
+  - [ ] Token validation working
+  - [ ] Expired tokens rejected
+  - [ ] Invalid tokens rejected
 
-- [ ] Index being used
-- [ ] Query time < 10ms
+- [ ] **Authorization**
+  - [ ] Operators can't access other operators' data
+  - [ ] Unauthenticated users redirected
+  - [ ] API endpoints protected
 
-### Browser Checks
-- [ ] No console errors
-- [ ] Timer updates smoothly
-- [ ] No memory leaks (check DevTools)
-- [ ] Works in Chrome
-- [ ] Works in Firefox
-- [ ] Works in Safari
-- [ ] Works on mobile
+- [ ] **Input Validation**
+  - [ ] SQL injection prevented
+  - [ ] XSS prevented
+  - [ ] Invalid data rejected
 
-## Monitoring Setup
+### Browser Compatibility
 
-### Database Monitoring
-Create a monitoring query:
-```sql
--- Save as monitoring_reservations.sql
-SELECT 
-  COUNT(*) FILTER (WHERE is_reserved = true AND reserved_until > NOW()) as active_reservations,
-  COUNT(*) FILTER (WHERE is_reserved = true AND reserved_until <= NOW()) as expired_reservations,
-  COUNT(*) FILTER (WHERE booking_status = 'confirmed') as confirmed_bookings,
-  AVG(EXTRACT(EPOCH FROM (reserved_until - created_at))) FILTER (WHERE is_reserved = true) as avg_reservation_duration
-FROM bookings
-WHERE created_at > NOW() - INTERVAL '1 hour';
-```
+- [ ] Chrome (latest)
+- [ ] Firefox (latest)
+- [ ] Safari (latest)
+- [ ] Edge (latest)
+- [ ] Mobile browsers
 
-- [ ] Monitoring query created
-- [ ] Schedule to run every 5 minutes
+### Device Testing
 
-### Application Monitoring
-- [ ] Set up alerts for:
-  - High number of expired reservations
-  - Background service failures
-  - API endpoint errors
-  - Database connection issues
+- [ ] Desktop (1920x1080)
+- [ ] Tablet (768x1024)
+- [ ] Mobile (375x667)
 
-### Log Monitoring
-- [ ] Configure log aggregation
-- [ ] Set up alerts for ERROR level logs
-- [ ] Monitor reservation conversion rate
+## Monitoring & Logging
+
+- [ ] **Backend Logging**
+  - [ ] Logs configured
+  - [ ] Log level appropriate
+  - [ ] Logs stored securely
+  - [ ] Log rotation configured
+
+- [ ] **Frontend Logging**
+  - [ ] Console errors monitored
+  - [ ] Error tracking configured (optional)
+  - [ ] Performance monitoring (optional)
+
+- [ ] **Alerts**
+  - [ ] API errors alert configured
+  - [ ] Database errors alert configured
+  - [ ] High error rate alert configured
+
+## Documentation
+
+- [ ] **API Documentation**
+  - [ ] Endpoints documented
+  - [ ] Request/response examples provided
+  - [ ] Error codes documented
+  - [ ] Authentication documented
+
+- [ ] **User Documentation**
+  - [ ] Quick start guide provided
+  - [ ] Screenshots included
+  - [ ] Common issues documented
+  - [ ] Support contact provided
+
+- [ ] **Developer Documentation**
+  - [ ] Architecture documented
+  - [ ] Setup instructions provided
+  - [ ] Deployment instructions provided
+  - [ ] Troubleshooting guide provided
 
 ## Rollback Plan
 
-If issues occur, follow these steps:
+- [ ] **Backup**
+  - [ ] Database backed up
+  - [ ] Previous version backed up
+  - [ ] Configuration backed up
 
-### 1. Stop Applications
-```bash
-# Stop backend
-pkill -f "dotnet.*BusBookingAPI"
+- [ ] **Rollback Procedure**
+  - [ ] Steps documented
+  - [ ] Tested (if possible)
+  - [ ] Team trained
 
-# Stop frontend
-pkill -f "ng serve"
-```
+- [ ] **Communication**
+  - [ ] Stakeholders notified
+  - [ ] Support team briefed
+  - [ ] Users informed (if needed)
 
-### 2. Rollback Database
-```sql
--- Remove new columns
-ALTER TABLE bookings DROP COLUMN IF EXISTS is_reserved;
-ALTER TABLE bookings DROP COLUMN IF EXISTS reserved_until;
+## Post-Deployment Monitoring (First 24 Hours)
 
--- Restore original constraint
-ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_booking_status_check;
-ALTER TABLE bookings ADD CONSTRAINT bookings_booking_status_check 
-CHECK (booking_status IN ('confirmed', 'cancelled', 'pending'));
-
--- Remove index
-DROP INDEX IF EXISTS idx_bookings_reserved;
-```
-
-### 3. Rollback Code
-```bash
-# Backend
-cd backend/BusBookingAPI
-git checkout HEAD~1 -- .
-
-# Frontend
-cd frontend/bus-booking
-git checkout HEAD~1 -- .
-```
-
-### 4. Restart Applications
-```bash
-# Backend
-cd backend/BusBookingAPI
-dotnet run
-
-# Frontend
-cd frontend/bus-booking
-npm start
-```
-
-- [ ] Rollback procedure documented
-- [ ] Rollback tested in development
+- [ ] Monitor error logs
+- [ ] Monitor API response times
+- [ ] Monitor database performance
+- [ ] Monitor user feedback
+- [ ] Check for any issues
+- [ ] Be ready to rollback if needed
 
 ## Sign-Off
 
-### Development Team
-- [ ] Code reviewed
-- [ ] Tests passed
-- [ ] Documentation complete
+- [ ] **Development Team**
+  - [ ] Code review completed
+  - [ ] Tests passed
+  - [ ] Ready for deployment
+  - [ ] Signed by: _________________ Date: _______
 
-### QA Team
-- [ ] All test scenarios passed
-- [ ] No critical bugs found
-- [ ] Performance acceptable
+- [ ] **QA Team**
+  - [ ] Testing completed
+  - [ ] No critical issues
+  - [ ] Ready for deployment
+  - [ ] Signed by: _________________ Date: _______
 
-### DevOps Team
-- [ ] Deployment scripts ready
-- [ ] Monitoring configured
-- [ ] Rollback plan tested
+- [ ] **DevOps Team**
+  - [ ] Infrastructure ready
+  - [ ] Deployment plan reviewed
+  - [ ] Ready for deployment
+  - [ ] Signed by: _________________ Date: _______
 
-### Product Owner
-- [ ] Feature meets requirements
-- [ ] User experience approved
-- [ ] Ready for production
+- [ ] **Product Owner**
+  - [ ] Requirements met
+  - [ ] Approved for deployment
+  - [ ] Signed by: _________________ Date: _______
 
-## Final Checklist
+## Deployment Completed
 
-- [ ] All pre-deployment checks completed
-- [ ] Database migration successful
-- [ ] Backend deployed and running
-- [ ] Frontend deployed and running
-- [ ] All integration tests passed
-- [ ] API tests passed
-- [ ] Post-deployment verification completed
-- [ ] Monitoring configured
-- [ ] Rollback plan ready
-- [ ] Team sign-off obtained
+- [ ] **Date**: _______
+- [ ] **Time**: _______
+- [ ] **Deployed By**: _______
+- [ ] **Version**: _______
+- [ ] **Notes**: _______
 
-## Deployment Date & Time
-- **Date**: _______________
-- **Time**: _______________
-- **Deployed By**: _______________
-- **Verified By**: _______________
+## Post-Deployment Review
 
-## Notes
-_Add any deployment notes, issues encountered, or special considerations here:_
+- [ ] **Date**: _______
+- [ ] **Issues Found**: _______
+- [ ] **Resolution**: _______
+- [ ] **Lessons Learned**: _______
+- [ ] **Reviewed By**: _______
 
 ---
 
-## Success Criteria Met ✓
-- [ ] Zero downtime deployment
-- [ ] No data loss
-- [ ] All existing features working
-- [ ] New feature working as expected
-- [ ] Performance within acceptable limits
-- [ ] No critical errors in logs
+## Quick Reference
 
-**Deployment Status**: ⬜ Not Started | ⬜ In Progress | ⬜ Completed | ⬜ Rolled Back
+### Environment Variables (Backend)
+```
+DB_USER=postgres
+DB_PASSWORD=<password>
+DB_NAME=busBooking
+DB_HOST=localhost
+DB_PORT=5432
+JWT_SECRET=<min 32 chars>
+JWT_ISSUER=BusBookingAPI
+JWT_AUDIENCE=BusBookingClient
+JWT_EXPIRATION_MINUTES=60
+```
+
+### Build Commands
+
+**Backend**
+```bash
+dotnet build --configuration Release
+dotnet publish --configuration Release --output ./publish
+dotnet ef database update
+```
+
+**Frontend**
+```bash
+ng build --configuration production
+```
+
+### Deployment Verification
+
+**Backend**
+```bash
+curl -X GET http://localhost:5266/api/operator-dashboard/locations \
+  -H "Authorization: Bearer <token>"
+```
+
+**Frontend**
+```bash
+# Check if application loads
+curl http://localhost:4200
+```
+
+### Rollback Commands
+
+**Backend**
+```bash
+# Restore previous version
+# Restore database backup
+dotnet ef database update <previous-migration>
+```
+
+**Frontend**
+```bash
+# Restore previous build
+# Clear browser cache
+```

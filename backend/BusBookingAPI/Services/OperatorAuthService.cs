@@ -33,7 +33,7 @@ namespace BusBookingAPI.Services
             _jwtSecret = configuration["Jwt:Secret"] ?? "your-secret-key-change-this-in-production-at-least-32-characters-long";
             _jwtIssuer = configuration["Jwt:Issuer"] ?? "BusBookingAPI";
             _jwtAudience = configuration["Jwt:Audience"] ?? "BusBookingClient";
-            _jwtExpirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
+            _jwtExpirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "1440"); // 24 hours instead of 60 minutes
         }
 
         public async Task<OperatorAuthResponse> LoginAsync(OperatorLoginRequest request)
@@ -146,6 +146,7 @@ namespace BusBookingAPI.Services
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, operatorDto.Id.ToString()),
+                new Claim("operatorId", operatorDto.Id.ToString()),
                 new Claim(ClaimTypes.Email, operatorDto.Email),
                 new Claim(ClaimTypes.Name, operatorDto.OperatorName),
                 new Claim("role", "bus_operator")

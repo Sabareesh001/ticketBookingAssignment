@@ -26,8 +26,8 @@ namespace BusBookingAPI.Controllers
         /// <returns>Available dates and seat counts</returns>
         [HttpGet("available-dates/{busId}")]
         public async Task<ActionResult<AvailableDatesResponse>> GetAvailableDates(
-            int busId, 
-            [FromQuery] DateTime? startDate = null, 
+            int busId,
+            [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
         {
             try
@@ -57,8 +57,8 @@ namespace BusBookingAPI.Controllers
         /// <returns>Boolean indicating availability</returns>
         [HttpGet("check-availability/{busId}")]
         public async Task<ActionResult<bool>> CheckDateAvailability(
-            int busId, 
-            [FromQuery] DateTime date, 
+            int busId,
+            [FromQuery] DateTime date,
             [FromQuery] int requiredSeats = 1)
         {
             try
@@ -82,22 +82,22 @@ namespace BusBookingAPI.Controllers
         /// <returns>Detailed availability information</returns>
         [HttpGet("details/{busId}")]
         public async Task<ActionResult<List<BusAvailabilityDto>>> GetBusAvailabilityDetails(
-            int busId, 
+            int busId,
             [FromQuery] DateTime date)
         {
             try
             {
                 _logger.LogInformation($"Getting availability details for bus {busId} on {date}");
                 var availability = await _availabilityService.GetBusAvailabilityAsync(busId, date);
-                
+
                 // Log the data being returned for debugging
                 _logger.LogInformation($"Returning {availability.Count} availability records");
                 if (availability.Count > 0)
                 {
                     var first = availability[0];
-                    _logger.LogInformation($"First record - PickupTime: {first.PickupTime}, DropTime: {first.DropTime}, Duration: {first.JourneyDurationHours}");
+                    _logger.LogInformation($"First record - BusId: {first.BusId}, AvailableSeats: {first.AvailableSeats}");
                 }
-                
+
                 return Ok(availability);
             }
             catch (Exception ex)
@@ -116,14 +116,14 @@ namespace BusBookingAPI.Controllers
         /// <returns>Raw availability data for debugging</returns>
         [HttpGet("debug/{busId}")]
         public async Task<ActionResult> GetBusAvailabilityDebug(
-            int busId, 
+            int busId,
             [FromQuery] DateTime date)
         {
             try
             {
                 _logger.LogInformation($"DEBUG: Getting availability for bus {busId} on {date}");
                 var availability = await _availabilityService.GetBusAvailabilityAsync(busId, date);
-                
+
                 return Ok(new
                 {
                     success = true,
@@ -131,17 +131,18 @@ namespace BusBookingAPI.Controllers
                     requestedDate = date,
                     recordCount = availability.Count,
                     data = availability,
-                    message = availability.Count == 0 
-                        ? "No availability records found. You may need to generate availability first." 
+                    message = availability.Count == 0
+                        ? "No availability records found. You may need to generate availability first."
                         : $"Found {availability.Count} availability record(s)"
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError($"DEBUG ERROR: {ex.Message}");
-                return StatusCode(500, new { 
+                return StatusCode(500, new
+                {
                     success = false,
-                    message = "An error occurred", 
+                    message = "An error occurred",
                     error = ex.Message,
                     stackTrace = ex.StackTrace
                 });
@@ -213,12 +214,12 @@ namespace BusBookingAPI.Controllers
             {
                 _logger.LogInformation($"Updating schedule for bus {busId}");
                 var result = await _availabilityService.UpdateBusScheduleAsync(busId, scheduleDto);
-                
+
                 if (result)
                 {
                     return Ok(new { message = $"Bus schedule updated successfully for bus {busId}" });
                 }
-                
+
                 return StatusCode(500, new { message = "Failed to update bus schedule" });
             }
             catch (KeyNotFoundException ex)
@@ -243,12 +244,12 @@ namespace BusBookingAPI.Controllers
             try
             {
                 _logger.LogInformation("Generating availability for all active buses");
-                
+
                 // Get all active buses and generate availability for each
                 // This is a simplified implementation - in production you'd want to do this in batches
                 var buses = await GetAllActiveBuses();
                 var results = new List<string>();
-                
+
                 foreach (var busId in buses)
                 {
                     try
@@ -261,8 +262,9 @@ namespace BusBookingAPI.Controllers
                         results.Add($"Bus {busId}: Failed - {ex.Message}");
                     }
                 }
-                
-                return Ok(new { 
+
+                return Ok(new
+                {
                     message = "Availability generation completed",
                     results = results
                 });
@@ -286,12 +288,12 @@ namespace BusBookingAPI.Controllers
             {
                 _logger.LogInformation($"Updating timing for bus {updateDto.BusId} on {updateDto.AvailableDate}");
                 var result = await _availabilityService.UpdateAvailabilityTimingAsync(updateDto);
-                
+
                 if (result)
                 {
                     return Ok(new { message = "Availability timing updated successfully" });
                 }
-                
+
                 return StatusCode(500, new { message = "Failed to update availability timing" });
             }
             catch (KeyNotFoundException ex)
@@ -318,8 +320,9 @@ namespace BusBookingAPI.Controllers
             {
                 _logger.LogInformation($"Bulk updating timing for bus {bulkUpdateDto.BusId} for {bulkUpdateDto.Dates.Count} dates");
                 var result = await _availabilityService.BulkUpdateAvailabilityTimingAsync(bulkUpdateDto);
-                
-                return Ok(new { 
+
+                return Ok(new
+                {
                     message = $"Successfully updated timing for {result.UpdatedCount} out of {bulkUpdateDto.Dates.Count} dates",
                     updatedCount = result.UpdatedCount,
                     failedDates = result.FailedDates
@@ -341,8 +344,8 @@ namespace BusBookingAPI.Controllers
         /// <returns>Available dates with timing information</returns>
         [HttpGet("available-dates-with-timing/{busId}")]
         public async Task<ActionResult<AvailableDatesResponse>> GetAvailableDatesWithTiming(
-            int busId, 
-            [FromQuery] DateTime? startDate = null, 
+            int busId,
+            [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
         {
             try

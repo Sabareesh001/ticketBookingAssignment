@@ -9,6 +9,7 @@ namespace BusBookingAPI.Services
     {
         Task<StateDto> GetStateByIdAsync(int id);
         Task<List<StateDto>> GetAllStatesAsync();
+        Task<List<StateDto>> GetStatesByCountryIdAsync(int countryId);
         Task<StateDto> CreateStateAsync(CreateStateDto createStateDto);
         Task<StateDto> UpdateStateAsync(int id, UpdateStateDto updateStateDto);
         Task<bool> DeleteStateAsync(int id);
@@ -48,6 +49,28 @@ namespace BusBookingAPI.Services
 
             var states = await _context.States
                 .Include(s => s.Country)
+                .ToListAsync();
+
+            return states.Select(MapToDto).ToList();
+        }
+
+        public async Task<List<StateDto>> GetStatesByCountryIdAsync(int countryId)
+        {
+            _logger.LogInformation($"Fetching states for country ID {countryId}");
+
+            // Check if country exists
+            var countryExists = await _context.Countries
+                .AnyAsync(c => c.Id == countryId);
+
+            if (!countryExists)
+            {
+                _logger.LogWarning($"Country with ID {countryId} not found");
+                throw new KeyNotFoundException($"Country with ID {countryId} not found");
+            }
+
+            var states = await _context.States
+                .Include(s => s.Country)
+                .Where(s => s.CountryId == countryId)
                 .ToListAsync();
 
             return states.Select(MapToDto).ToList();

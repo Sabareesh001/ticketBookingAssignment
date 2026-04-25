@@ -10,6 +10,8 @@ namespace BusBookingAPI.Services
     {
         Task<RouteDto> GetRouteByIdAsync(int id);
         Task<List<RouteDto>> GetAllRoutesAsync();
+        Task<RouteDetailDto> GetRouteDetailByIdAsync(int id);
+        Task<List<RouteDetailDto>> GetAllRouteDetailsAsync();
         Task<RouteDto> CreateRouteAsync(CreateRouteDto createRouteDto);
         Task<RouteDto> UpdateRouteAsync(int id, UpdateRouteDto updateRouteDto);
         Task<bool> DeleteRouteAsync(int id);
@@ -48,6 +50,40 @@ namespace BusBookingAPI.Services
             var routes = await _context.Routes.ToListAsync();
 
             return routes.Select(MapToDto).ToList();
+        }
+
+        public async Task<RouteDetailDto> GetRouteDetailByIdAsync(int id)
+        {
+            _logger.LogInformation($"Fetching route details with ID {id}");
+
+            var route = await _context.Routes
+                .Include(r => r.SourceLocation)
+                .ThenInclude(l => l.District)
+                .Include(r => r.DestinationLocation)
+                .ThenInclude(l => l.District)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (route == null)
+            {
+                _logger.LogWarning($"Route with ID {id} not found");
+                throw new KeyNotFoundException($"Route with ID {id} not found");
+            }
+
+            return MapToDetailDto(route);
+        }
+
+        public async Task<List<RouteDetailDto>> GetAllRouteDetailsAsync()
+        {
+            _logger.LogInformation("Fetching all route details");
+
+            var routes = await _context.Routes
+                .Include(r => r.SourceLocation)
+                .ThenInclude(l => l.District)
+                .Include(r => r.DestinationLocation)
+                .ThenInclude(l => l.District)
+                .ToListAsync();
+
+            return routes.Select(MapToDetailDto).ToList();
         }
 
         public async Task<RouteDto> CreateRouteAsync(CreateRouteDto createRouteDto)
@@ -163,6 +199,25 @@ namespace BusBookingAPI.Services
                 Id = route.Id,
                 SourceLocationId = route.SourceLocationId,
                 DestinationLocationId = route.DestinationLocationId,
+                DistanceKm = route.DistanceKm,
+                EstimatedDurationHours = route.EstimatedDurationHours,
+                CreatedAt = route.CreatedAt,
+                UpdatedAt = route.UpdatedAt
+            };
+        }
+
+        private RouteDetailDto MapToDetailDto(Route route)
+        {
+            var sourceDistrictName = route.SourceLocation?.District?.DistrictName ?? "Unknown";
+            var destDistrictName = route.DestinationLocation?.District?.DistrictName ?? "Unknown";
+
+            return new RouteDetailDto
+            {
+                Id = route.Id,
+                SourceLocationId = route.SourceLocationId,
+                DestinationLocationId = route.DestinationLocationId,
+                SourceDistrictName = sourceDistrictName,
+                DestinationDistrictName = destDistrictName,
                 DistanceKm = route.DistanceKm,
                 EstimatedDurationHours = route.EstimatedDurationHours,
                 CreatedAt = route.CreatedAt,
