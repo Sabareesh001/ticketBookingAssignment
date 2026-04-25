@@ -8,6 +8,7 @@ import { OperatorAuthService } from '../../services/operator-auth.service';
 import { OperatorDashboardService, BusDto, CreateBusDto, UpdateBusDto, RouteDetailDto } from '../../services/operator-dashboard.service';
 import { LocationService, Country, State, District } from '../../services/location.service';
 import { LocationDto, CreateLocationDto, UpdateLocationDto } from '../../models/operator-auth.model';
+import { BusAvailabilityService, BusAvailabilityDto, CreateBusAvailabilityDto, UpdateBusAvailabilityDto } from '../../services/bus-availability.service';
 
 interface PaginatedLocations {
   items: LocationDto[];
@@ -25,6 +26,14 @@ interface PaginatedBuses {
   totalPages: number;
 }
 
+interface PaginatedAvailability {
+  items: BusAvailabilityDto[];
+  currentPage: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
 @Component({
   selector: 'app-operator-dashboard',
   standalone: true,
@@ -36,7 +45,7 @@ export class OperatorDashboardComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   // Tab management
-  activeTab: 'locations' | 'buses' = 'locations';
+  activeTab: 'locations' | 'buses' | 'availability' = 'locations';
 
   // Locations Manager
   locations: LocationDto[] = [];
@@ -58,16 +67,39 @@ export class OperatorDashboardComponent implements OnInit, OnDestroy {
     totalPages: 0
   };
 
+  // Availability Manager
+  availabilities: BusAvailabilityDto[] = [];
+  filteredAvailabilities: BusAvailabilityDto[] = [];
+  paginatedAvailability: PaginatedAvailability = {
+    items: [],
+    currentPage: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 0
+  };
+  
+  // Availability filters
+  availabilityFilters = {
+    busId: '',
+    status: '',
+    dateFrom: '',
+    dateTo: ''
+  };
+  availabilitySearchTerm = '';
+
   // Modal state
   showLocationModal = false;
   showBusModal = false;
+  showAvailabilityModal = false;
   isEditMode = false;
   selectedLocationId: number | null = null;
   selectedBusId: number | null = null;
+  selectedAvailabilityId: number | null = null;
 
   // Forms
   locationForm: FormGroup;
   busForm: FormGroup;
+  availabilityForm: FormGroup;
 
   // Dropdowns
   countries: Country[] = [];
@@ -91,6 +123,7 @@ export class OperatorDashboardComponent implements OnInit, OnDestroy {
   isLoadingDistricts = false;
   isLoadingRoutes = false;
   isLoadingLocations = false;
+  isLoadingAvailability = false;
   errorMessage = '';
   successMessage = '';
   isSubmitting = false;
@@ -99,6 +132,7 @@ export class OperatorDashboardComponent implements OnInit, OnDestroy {
     private operatorAuthService: OperatorAuthService,
     private operatorDashboardService: OperatorDashboardService,
     private locationService: LocationService,
+    private busAvailabilityService: BusAvailabilityService,
     private formBuilder: FormBuilder,
     private router: Router,
     private cdr: ChangeDetectorRef
@@ -119,6 +153,17 @@ export class OperatorDashboardComponent implements OnInit, OnDestroy {
       routeId: ['', Validators.required],
       seatingCapacity: ['', [Validators.required, Validators.min(1), Validators.max(100)]],
       price: ['', [Validators.required, Validators.min(0)]],
+      isActive: [true]
+    });
+
+    this.availabilityForm = this.formBuilder.group({
+      busId: ['', Validators.required],
+      availableDate: ['', Validators.required],
+      totalSeats: ['', [Validators.required, Validators.min(1), Validators.max(100)]],
+      availableSeats: ['', [Validators.required, Validators.min(0)]],
+      pickupTime: [''],
+      dropTime: [''],
+      journeyDurationHours: ['', [Validators.min(0)]],
       isActive: [true]
     });
   }
@@ -621,5 +666,306 @@ export class OperatorDashboardComponent implements OnInit, OnDestroy {
 
   formatDate(dateString: string): string {
     return new Date(dateString).toLocaleDateString();
+  }
+
+  // Bus Availability Management
+  loadAvailability(): void {
+    this.isLoadingAvailability = true;
+    this.errorMessage = '';
+    this.busAvailabilityService.getAllAvailabilities()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          // Sort by date descending (most recent first)
+          this.availabilities = data.sort((a, b) => 
+            new Date(b.availableDate).getTime() - new Date(a.availableDate).getTime()
+          );
+          this.applyAvailabilityFilters();
+          this.isLoadingAvailability = false;
+          this.cdr.markForCheck();
+        },
+        error: (error) => {
+          this.errorMessage = error.message || 'Failed to load availability records';
+          this.isLoadingAvailability = false;
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  applyAvailabilityFilters(): void {
+    let filtered = [...this.availabilities];
+
+    // Filter by bus
+    if (this.availabilityFilters.busId) {
+      const busId = parseInt(this.availabilityFilters.busId);
+      filtered = filtered.filter(a => a.busId === busId);
+    }
+
+    // Filter by status
+    if (this.availabilityFilters.status) {
+      const isActive = this.availabilityFilters.status === 'active';
+      filtered = filtered.filter(a => a.isActive === isActive);
+    }
+
+    // Filter by date range
+    if (this.availabilityFilters.dateFrom) {
+      const fromDate = new Date(this.availabilityFilters.dateFrom);
+      filtered = filtered.filter(a => new Date(a.availableDate) >= fromDate);
+    }
+
+    if (this.availabilityFilters.dateTo) {
+      const toDate = new Date(this.availabilityFilters.dateTo);
+      filtered = filtered.filter(a => new Date(a.availableDate) <= toDate);
+    }
+
+    // Search by bus registration
+    if (this.availabilitySearchTerm.trim()) {
+      const searchLower = this.availabilitySearchTerm.toLowerCase().trim();
+      filtered = filtered.filter(a => {
+        const busReg = this.getBusRegistration(a.busId).toLowerCase();
+        const route = this.getBusRoute(a.busId).toLowerCase();
+        return busReg.includes(searchLower) || route.includes(searchLower);
+      });
+    }
+
+    this.filteredAvailabilities = filtered;
+    this.paginatedAvailability = {
+      items: [],
+      currentPage: 1,
+      pageSize: 10,
+      totalItems: this.filteredAvailabilities.length,
+      totalPages: Math.ceil(this.filteredAvailabilities.length / 10)
+    };
+    this.updateAvailabilityPageItems();
+  }
+
+  clearAvailabilityFilters(): void {
+    this.availabilityFilters = {
+      busId: '',
+      status: '',
+      dateFrom: '',
+      dateTo: ''
+    };
+    this.availabilitySearchTerm = '';
+    this.applyAvailabilityFilters();
+  }
+
+  updateAvailabilityPageItems(): void {
+    const startIndex = (this.paginatedAvailability.currentPage - 1) * this.paginatedAvailability.pageSize;
+    const endIndex = startIndex + this.paginatedAvailability.pageSize;
+    this.paginatedAvailability = {
+      ...this.paginatedAvailability,
+      items: this.filteredAvailabilities.slice(startIndex, endIndex)
+    };
+    this.cdr.markForCheck();
+  }
+
+  goToAvailabilityPage(page: number): void {
+    if (page >= 1 && page <= this.paginatedAvailability.totalPages) {
+      this.paginatedAvailability = {
+        ...this.paginatedAvailability,
+        currentPage: page
+      };
+      this.updateAvailabilityPageItems();
+    }
+  }
+
+  openCreateAvailabilityModal(): void {
+    this.isEditMode = false;
+    this.selectedAvailabilityId = null;
+    this.availabilityForm.reset({ isActive: true });
+    this.showAvailabilityModal = true;
+    this.errorMessage = '';
+    
+    // Set up listener for bus selection to auto-populate seats
+    this.availabilityForm.get('busId')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(busId => {
+        if (busId) {
+          const selectedBus = this.buses.find(b => b.id === parseInt(busId));
+          if (selectedBus && selectedBus.seatingCapacity) {
+            this.availabilityForm.patchValue({
+              totalSeats: selectedBus.seatingCapacity,
+              availableSeats: selectedBus.seatingCapacity
+            });
+          }
+        }
+      });
+  }
+
+  openEditAvailabilityModal(availability: BusAvailabilityDto): void {
+    this.isEditMode = true;
+    this.selectedAvailabilityId = availability.id;
+    
+    // Format date for input[type="date"]
+    const dateStr = new Date(availability.availableDate).toISOString().split('T')[0];
+    
+    // Format time for input[type="time"] (HH:mm format)
+    const pickupTime = availability.pickupTime ? this.formatTimeForInput(availability.pickupTime) : '';
+    const dropTime = availability.dropTime ? this.formatTimeForInput(availability.dropTime) : '';
+    
+    this.availabilityForm.patchValue({
+      busId: availability.busId,
+      availableDate: dateStr,
+      totalSeats: availability.totalSeats,
+      availableSeats: availability.availableSeats,
+      pickupTime: pickupTime,
+      dropTime: dropTime,
+      journeyDurationHours: availability.journeyDurationHours || '',
+      isActive: availability.isActive
+    });
+    this.errorMessage = '';
+    this.showAvailabilityModal = true;
+    this.cdr.markForCheck();
+  }
+
+  closeAvailabilityModal(): void {
+    this.showAvailabilityModal = false;
+    this.availabilityForm.reset();
+    this.errorMessage = '';
+  }
+
+  saveAvailability(): void {
+    if (!this.availabilityForm.valid) {
+      this.errorMessage = 'Please fill in all required fields correctly';
+      return;
+    }
+
+    // Validate available seats <= total seats
+    const totalSeats = parseInt(this.availabilityForm.value.totalSeats);
+    const availableSeats = parseInt(this.availabilityForm.value.availableSeats);
+    
+    if (availableSeats > totalSeats) {
+      this.errorMessage = 'Available seats cannot exceed total seats';
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.errorMessage = '';
+
+    const formValue = this.availabilityForm.value;
+    
+    // Convert time strings to TimeSpan format (HH:mm:ss)
+    const pickupTime = formValue.pickupTime ? `${formValue.pickupTime}:00` : undefined;
+    const dropTime = formValue.dropTime ? `${formValue.dropTime}:00` : undefined;
+    
+    const availabilityData = {
+      busId: parseInt(formValue.busId),
+      availableDate: formValue.availableDate,
+      totalSeats: totalSeats,
+      availableSeats: availableSeats,
+      isActive: formValue.isActive,
+      pickupTime: pickupTime,
+      dropTime: dropTime,
+      journeyDurationHours: formValue.journeyDurationHours ? parseFloat(formValue.journeyDurationHours) : undefined
+    };
+
+    if (this.isEditMode && this.selectedAvailabilityId) {
+      this.busAvailabilityService.updateAvailability(this.selectedAvailabilityId, availabilityData as UpdateBusAvailabilityDto)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.successMessage = 'Availability updated successfully';
+            this.closeAvailabilityModal();
+            this.loadAvailability();
+            this.isSubmitting = false;
+            setTimeout(() => this.successMessage = '', 3000);
+          },
+          error: (error) => {
+            this.errorMessage = error.message || 'Failed to update availability';
+            this.isSubmitting = false;
+          }
+        });
+    } else {
+      this.busAvailabilityService.createAvailability(availabilityData as CreateBusAvailabilityDto)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.successMessage = 'Availability created successfully';
+            this.closeAvailabilityModal();
+            this.loadAvailability();
+            this.isSubmitting = false;
+            setTimeout(() => this.successMessage = '', 3000);
+          },
+          error: (error) => {
+            this.errorMessage = error.message || 'Failed to create availability';
+            this.isSubmitting = false;
+          }
+        });
+    }
+  }
+
+  deleteAvailability(id: number): void {
+    if (!confirm('Are you sure you want to delete this availability record?')) {
+      return;
+    }
+
+    this.busAvailabilityService.deleteAvailability(id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.successMessage = 'Availability deleted successfully';
+          this.loadAvailability();
+          setTimeout(() => this.successMessage = '', 3000);
+        },
+        error: (error) => {
+          this.errorMessage = error.message || 'Failed to delete availability';
+        }
+      });
+  }
+
+  getBusRegistration(busId: number): string {
+    const bus = this.buses.find(b => b.id === busId);
+    return bus ? bus.registrationNumber : 'N/A';
+  }
+
+  getBusRoute(busId: number): string {
+    const bus = this.buses.find(b => b.id === busId);
+    if (!bus) return 'N/A';
+    return `${bus.sourceCity} → ${bus.destinationCity}`;
+  }
+
+  formatTime(timeString: string | undefined): string {
+    if (!timeString) return 'N/A';
+    
+    // Handle TimeSpan format (HH:mm:ss or HH:mm:ss.fffffff)
+    let timeParts: string[];
+    
+    if (timeString.includes('.')) {
+      timeString = timeString.split('.')[0];
+    }
+    
+    timeParts = timeString.split(':');
+    
+    if (timeParts.length >= 2) {
+      const hours = parseInt(timeParts[0]);
+      const minutes = timeParts[1];
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      return `${displayHours}:${minutes} ${ampm}`;
+    }
+    
+    return timeString;
+  }
+
+  formatTimeForInput(timeString: string): string {
+    if (!timeString) return '';
+    
+    // Handle TimeSpan format and convert to HH:mm for input[type="time"]
+    if (timeString.includes('.')) {
+      timeString = timeString.split('.')[0];
+    }
+    
+    const timeParts = timeString.split(':');
+    if (timeParts.length >= 2) {
+      return `${timeParts[0]}:${timeParts[1]}`;
+    }
+    
+    return timeString;
+  }
+
+  getTodayDate(): string {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
   }
 }

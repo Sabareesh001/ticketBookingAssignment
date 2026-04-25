@@ -5,7 +5,7 @@ using BusBookingAPI.Services;
 namespace BusBookingAPI.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/busavailability")]
     public class BusAvailabilityController : ControllerBase
     {
         private readonly IBusAvailabilityService _availabilityService;
@@ -15,6 +15,147 @@ namespace BusBookingAPI.Controllers
         {
             _availabilityService = availabilityService;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Get all bus availability records
+        /// </summary>
+        /// <returns>List of all availability records</returns>
+        [HttpGet]
+        public async Task<ActionResult<List<BusAvailabilityDto>>> GetAllAvailabilities()
+        {
+            try
+            {
+                _logger.LogInformation("Getting all bus availability records");
+                var availabilities = await _availabilityService.GetAllAvailabilitiesAsync();
+                return Ok(availabilities);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting all availabilities: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while retrieving availabilities" });
+            }
+        }
+
+        /// <summary>
+        /// Get a specific bus availability record by ID
+        /// </summary>
+        /// <param name="id">Availability ID</param>
+        /// <returns>Availability record</returns>
+        [HttpGet("{id}")]
+        public async Task<ActionResult<BusAvailabilityDto>> GetAvailabilityById(int id)
+        {
+            try
+            {
+                _logger.LogInformation($"Getting availability record {id}");
+                var availability = await _availabilityService.GetAvailabilityByIdAsync(id);
+                return Ok(availability);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning($"Availability not found: {ex.Message}");
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting availability: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while retrieving availability" });
+            }
+        }
+
+        /// <summary>
+        /// Get all availability records for a specific bus
+        /// </summary>
+        /// <param name="busId">Bus ID</param>
+        /// <returns>List of availability records for the bus</returns>
+        [HttpGet("bus/{busId}")]
+        public async Task<ActionResult<List<BusAvailabilityDto>>> GetAvailabilitiesByBus(int busId)
+        {
+            try
+            {
+                _logger.LogInformation($"Getting availability records for bus {busId}");
+                var availabilities = await _availabilityService.GetAvailabilitiesByBusAsync(busId);
+                return Ok(availabilities);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting availabilities for bus: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while retrieving availabilities" });
+            }
+        }
+
+        /// <summary>
+        /// Create a new bus availability record
+        /// </summary>
+        /// <param name="createDto">Availability data</param>
+        /// <returns>Created availability record</returns>
+        [HttpPost]
+        public async Task<ActionResult<BusAvailabilityDto>> CreateAvailability(CreateBusAvailabilityDto createDto)
+        {
+            try
+            {
+                _logger.LogInformation($"Creating availability for bus {createDto.BusId} on {createDto.AvailableDate}");
+                var availability = await _availabilityService.CreateAvailabilityAsync(createDto);
+                return CreatedAtAction(nameof(GetAvailabilityById), new { id = availability.Id }, availability);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error creating availability: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while creating availability" });
+            }
+        }
+
+        /// <summary>
+        /// Update an existing bus availability record
+        /// </summary>
+        /// <param name="id">Availability ID</param>
+        /// <param name="updateDto">Updated availability data</param>
+        /// <returns>Updated availability record</returns>
+        [HttpPut("{id}")]
+        public async Task<ActionResult<BusAvailabilityDto>> UpdateAvailability(int id, UpdateBusAvailabilityDto updateDto)
+        {
+            try
+            {
+                _logger.LogInformation($"Updating availability record {id}");
+                var availability = await _availabilityService.UpdateAvailabilityAsync(id, updateDto);
+                return Ok(availability);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning($"Availability not found: {ex.Message}");
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error updating availability: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while updating availability" });
+            }
+        }
+
+        /// <summary>
+        /// Delete a bus availability record
+        /// </summary>
+        /// <param name="id">Availability ID</param>
+        /// <returns>Success message</returns>
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteAvailability(int id)
+        {
+            try
+            {
+                _logger.LogInformation($"Deleting availability record {id}");
+                await _availabilityService.DeleteAvailabilityAsync(id);
+                return Ok(new { message = "Availability deleted successfully" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning($"Availability not found: {ex.Message}");
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error deleting availability: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while deleting availability" });
+            }
         }
 
         /// <summary>

@@ -4,6 +4,15 @@ namespace BusBookingAPI.Services
 {
     public interface IBusAvailabilityService
     {
+        // CRUD operations
+        Task<List<BusAvailabilityDto>> GetAllAvailabilitiesAsync();
+        Task<BusAvailabilityDto> GetAvailabilityByIdAsync(int id);
+        Task<List<BusAvailabilityDto>> GetAvailabilitiesByBusAsync(int busId);
+        Task<BusAvailabilityDto> CreateAvailabilityAsync(CreateBusAvailabilityDto createDto);
+        Task<BusAvailabilityDto> UpdateAvailabilityAsync(int id, UpdateBusAvailabilityDto updateDto);
+        Task DeleteAvailabilityAsync(int id);
+        
+        // Existing methods
         Task<AvailableDatesResponse> GetAvailableDatesAsync(int busId, DateTime? startDate = null, DateTime? endDate = null);
         Task<AvailableDatesResponse> GetAvailableDatesWithTimingAsync(int busId, DateTime? startDate = null, DateTime? endDate = null);
         Task<List<BusAvailabilityDto>> GetBusAvailabilityAsync(int busId, DateTime date);

@@ -80,7 +80,8 @@
 }
 
 .locations-section,
-.buses-section {
+.buses-section,
+.availability-section {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -214,59 +215,41 @@
   margin-bottom: 20px;
 }
 
-.locations-table {
+.locations-table,
+.buses-table,
+.availability-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
 }
 
-.locations-table thead {
+.locations-table thead,
+.buses-table thead,
+.availability-table thead {
   background-color: #f9f9f9;
   border-bottom: 2px solid #e0e0e0;
 }
 
-.locations-table th {
+.locations-table th,
+.buses-table th,
+.availability-table th {
   padding: 12px;
   text-align: left;
   font-weight: 600;
   color: #333;
 }
 
-.locations-table td {
+.locations-table td,
+.buses-table td,
+.availability-table td {
   padding: 12px;
   border-bottom: 1px solid #e0e0e0;
   color: #666;
 }
 
-.locations-table tbody tr:hover {
-  background-color: #f9f9f9;
-}
-
-.buses-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.buses-table thead {
-  background-color: #f9f9f9;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.buses-table th {
-  padding: 12px;
-  text-align: left;
-  font-weight: 600;
-  color: #333;
-}
-
-.buses-table td {
-  padding: 12px;
-  border-bottom: 1px solid #e0e0e0;
-  color: #666;
-}
-
-.buses-table tbody tr:hover {
+.locations-table tbody tr:hover,
+.buses-table tbody tr:hover,
+.availability-table tbody tr:hover {
   background-color: #f9f9f9;
 }
 
@@ -443,6 +426,14 @@
   margin-top: 4px;
 }
 
+.help-text {
+  display: block;
+  color: #999;
+  font-size: 12px;
+  margin-top: 4px;
+  font-style: italic;
+}
+
 .form-error {
   background-color: #f8d7da;
   color: #721c24;
@@ -465,16 +456,91 @@
     gap: 15px;
   }
 
-  .locations-table {
+  .locations-table,
+  .buses-table,
+  .availability-table {
     font-size: 12px;
   }
 
   .locations-table th,
-  .locations-table td {
+  .locations-table td,
+  .buses-table th,
+  .buses-table td,
+  .availability-table th,
+  .availability-table td {
     padding: 8px;
   }
 
   .modal {
     width: 95%;
   }
+
+  .filter-row {
+    flex-direction: column;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+}
+
+/* Filters Section */
+.filters-section {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #e0e0e0;
+}
+
+.filter-row {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.filter-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.search-row {
+  display: flex;
+  gap: 15px;
+}
+
+.search-group {
+  flex: 1;
+}
+
+.search-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+/* Seat availability indicators */
+.low-seats {
+  color: #ff9800;
+  font-weight: 600;
+}
+
+.no-seats {
+  color: #f44336;
+  font-weight: 600;
 }

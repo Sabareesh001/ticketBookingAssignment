@@ -19,6 +19,30 @@ namespace BusBookingAPI.DTOs
         public DateTime UpdatedAt { get; set; }
     }
 
+    public class CreateBusAvailabilityDto
+    {
+        public int BusId { get; set; }
+        public DateTime AvailableDate { get; set; }
+        public int TotalSeats { get; set; }
+        public int AvailableSeats { get; set; }
+        public bool IsActive { get; set; } = true;
+        public TimeSpan? PickupTime { get; set; }
+        public TimeSpan? DropTime { get; set; }
+        public decimal? JourneyDurationHours { get; set; }
+    }
+
+    public class UpdateBusAvailabilityDto
+    {
+        public int BusId { get; set; }
+        public DateTime AvailableDate { get; set; }
+        public int TotalSeats { get; set; }
+        public int AvailableSeats { get; set; }
+        public bool IsActive { get; set; }
+        public TimeSpan? PickupTime { get; set; }
+        public TimeSpan? DropTime { get; set; }
+        public decimal? JourneyDurationHours { get; set; }
+    }
+
     public class AvailableDatesRequest
     {
         public int BusId { get; set; }

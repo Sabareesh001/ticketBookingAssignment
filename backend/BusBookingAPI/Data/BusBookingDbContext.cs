@@ -375,6 +375,12 @@ namespace BusBookingAPI.Data
             modelBuilder.Entity<BusAvailability>()
                 .Property(ba => ba.ScheduleId).HasColumnName("schedule_id");
             modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.PickupTime).HasColumnName("pickup_time");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.DropTime).HasColumnName("drop_time");
+            modelBuilder.Entity<BusAvailability>()
+                .Property(ba => ba.JourneyDurationHours).HasColumnName("journey_duration_hours");
+            modelBuilder.Entity<BusAvailability>()
                 .Property(ba => ba.CreatedAt).HasColumnName("created_at");
             modelBuilder.Entity<BusAvailability>()
                 .Property(ba => ba.UpdatedAt).HasColumnName("updated_at");

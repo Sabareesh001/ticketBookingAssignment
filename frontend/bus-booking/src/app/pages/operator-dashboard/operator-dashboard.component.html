@@ -21,6 +21,12 @@
       (click)="activeTab = 'buses'">
       Buses
     </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab === 'availability'"
+      (click)="activeTab = 'availability'; loadAvailability()">
+      Bus Availability
+    </button>
   </nav>
 
   <!-- Main Content -->
@@ -181,6 +187,168 @@
             class="btn btn-sm" 
             [disabled]="paginatedBuses.currentPage === paginatedBuses.totalPages"
             (click)="goToBusPage(paginatedBuses.currentPage + 1)">
+            Next
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bus Availability Manager Section -->
+    <section class="availability-section" *ngIf="activeTab === 'availability'">
+      <div class="section-header">
+        <h2>Bus Availability Manager</h2>
+        <button class="btn btn-primary" (click)="openCreateAvailabilityModal()">+ Add Availability</button>
+      </div>
+
+      <!-- Success Message -->
+      <div *ngIf="successMessage" class="toast toast-success">
+        {{ successMessage }}
+      </div>
+
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="toast toast-error">
+        {{ errorMessage }}
+      </div>
+
+      <!-- Filters and Search -->
+      <div class="filters-section" *ngIf="!isLoadingAvailability">
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="filterBus">Filter by Bus</label>
+            <select id="filterBus" [(ngModel)]="availabilityFilters.busId" (change)="applyAvailabilityFilters()" class="form-control">
+              <option value="">All Buses</option>
+              <option *ngFor="let bus of buses" [value]="bus.id">
+                {{ bus.registrationNumber }} ({{ bus.sourceCity }} → {{ bus.destinationCity }})
+              </option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filterStatus">Filter by Status</label>
+            <select id="filterStatus" [(ngModel)]="availabilityFilters.status" (change)="applyAvailabilityFilters()" class="form-control">
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filterDateFrom">Date From</label>
+            <input 
+              id="filterDateFrom" 
+              type="date" 
+              [(ngModel)]="availabilityFilters.dateFrom" 
+              (change)="applyAvailabilityFilters()" 
+              class="form-control">
+          </div>
+
+          <div class="filter-group">
+            <label for="filterDateTo">Date To</label>
+            <input 
+              id="filterDateTo" 
+              type="date" 
+              [(ngModel)]="availabilityFilters.dateTo" 
+              (change)="applyAvailabilityFilters()" 
+              class="form-control">
+          </div>
+
+          <div class="filter-group">
+            <button class="btn btn-secondary" (click)="clearAvailabilityFilters()" style="margin-top: 24px;">
+              Clear Filters
+            </button>
+          </div>
+        </div>
+
+        <div class="search-row">
+          <div class="search-group">
+            <label for="searchAvailability">Search</label>
+            <input 
+              id="searchAvailability" 
+              type="text" 
+              [(ngModel)]="availabilitySearchTerm" 
+              (input)="applyAvailabilityFilters()" 
+              placeholder="Search by bus registration..." 
+              class="form-control">
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="isLoadingAvailability" class="loading-state">
+        <p>Loading availability records...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!isLoadingAvailability && filteredAvailabilities.length === 0 && availabilities.length === 0" class="empty-state">
+        <p>No availability records found. Create your first record to get started.</p>
+      </div>
+
+      <!-- No Results State -->
+      <div *ngIf="!isLoadingAvailability && filteredAvailabilities.length === 0 && availabilities.length > 0" class="empty-state">
+        <p>No availability records match your filters. Try adjusting your search criteria.</p>
+      </div>
+
+      <!-- Availability Table -->
+      <div *ngIf="!isLoadingAvailability && filteredAvailabilities.length > 0" class="table-container">
+        <table class="availability-table">
+          <thead>
+            <tr>
+              <th>Bus Registration</th>
+              <th>Route</th>
+              <th>Available Date</th>
+              <th>Total Seats</th>
+              <th>Available Seats</th>
+              <th>Pickup Time</th>
+              <th>Drop Time</th>
+              <th>Duration (hrs)</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let availability of paginatedAvailability.items">
+              <td><strong>{{ getBusRegistration(availability.busId) }}</strong></td>
+              <td>{{ getBusRoute(availability.busId) }}</td>
+              <td>{{ formatDate(availability.availableDate) }}</td>
+              <td>{{ availability.totalSeats }}</td>
+              <td>
+                <span [class.low-seats]="availability.availableSeats < 10 && availability.availableSeats > 0" 
+                      [class.no-seats]="availability.availableSeats === 0">
+                  {{ availability.availableSeats }}
+                </span>
+              </td>
+              <td>{{ formatTime(availability.pickupTime) }}</td>
+              <td>{{ formatTime(availability.dropTime) }}</td>
+              <td>{{ availability.journeyDurationHours ? (availability.journeyDurationHours | number: '1.1-1') + ' hrs' : 'N/A' }}</td>
+              <td>
+                <span class="status-badge" [class.active]="availability.isActive" [class.inactive]="!availability.isActive">
+                  {{ availability.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="actions">
+                <button class="btn btn-sm btn-edit" (click)="openEditAvailabilityModal(availability)">Edit</button>
+                <button class="btn btn-sm btn-delete" (click)="deleteAvailability(availability.id)">Delete</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <div class="pagination" *ngIf="paginatedAvailability.totalPages > 1">
+          <button 
+            class="btn btn-sm" 
+            [disabled]="paginatedAvailability.currentPage === 1"
+            (click)="goToAvailabilityPage(paginatedAvailability.currentPage - 1)">
+            Previous
+          </button>
+          <span class="page-info">
+            Page {{ paginatedAvailability.currentPage }} of {{ paginatedAvailability.totalPages }}
+            ({{ filteredAvailabilities.length }} records)
+          </span>
+          <button 
+            class="btn btn-sm" 
+            [disabled]="paginatedAvailability.currentPage === paginatedAvailability.totalPages"
+            (click)="goToAvailabilityPage(paginatedAvailability.currentPage + 1)">
             Next
           </button>
         </div>
@@ -449,6 +617,167 @@
           class="btn btn-primary"
           (click)="saveBus()"
           [disabled]="!busForm.valid || isSubmitting">
+          {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Update' : 'Create') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Availability Modal -->
+  <div *ngIf="showAvailabilityModal" class="modal-overlay" (click)="closeAvailabilityModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditMode ? 'Edit Availability' : 'Create New Availability' }}</h3>
+        <button class="close-btn" (click)="closeAvailabilityModal()">×</button>
+      </div>
+
+      <form [formGroup]="availabilityForm" class="modal-body">
+        <!-- Error Message in Modal -->
+        <div *ngIf="errorMessage" class="form-error">
+          {{ errorMessage }}
+        </div>
+
+        <!-- Bus Selection -->
+        <div class="form-group">
+          <label for="busId">Bus *</label>
+          <select
+            id="busId"
+            formControlName="busId"
+            class="form-control"
+            [disabled]="isEditMode || buses.length === 0"
+            [class.is-invalid]="availabilityForm.get('busId')?.invalid && availabilityForm.get('busId')?.touched">
+            <option value="">Select Bus</option>
+            <option *ngFor="let bus of buses" [value]="bus.id">
+              {{ bus.registrationNumber }} - {{ bus.sourceCity }} → {{ bus.destinationCity }} ({{ bus.seatingCapacity }} seats)
+            </option>
+          </select>
+          <small *ngIf="availabilityForm.get('busId')?.invalid && availabilityForm.get('busId')?.touched" class="error-text">
+            Bus is required
+          </small>
+          <small *ngIf="!isEditMode" class="help-text">
+            Selecting a bus will auto-populate seat capacity
+          </small>
+        </div>
+
+        <!-- Available Date -->
+        <div class="form-group">
+          <label for="availableDate">Available Date *</label>
+          <input
+            id="availableDate"
+            type="date"
+            formControlName="availableDate"
+            [min]="getTodayDate()"
+            class="form-control"
+            [class.is-invalid]="availabilityForm.get('availableDate')?.invalid && availabilityForm.get('availableDate')?.touched">
+          <small *ngIf="availabilityForm.get('availableDate')?.invalid && availabilityForm.get('availableDate')?.touched" class="error-text">
+            Available date is required
+          </small>
+        </div>
+
+        <!-- Total Seats -->
+        <div class="form-group">
+          <label for="totalSeats">Total Seats *</label>
+          <input
+            id="totalSeats"
+            type="number"
+            formControlName="totalSeats"
+            placeholder="e.g., 45"
+            min="1"
+            max="100"
+            class="form-control"
+            [class.is-invalid]="availabilityForm.get('totalSeats')?.invalid && availabilityForm.get('totalSeats')?.touched">
+          <small *ngIf="availabilityForm.get('totalSeats')?.invalid && availabilityForm.get('totalSeats')?.touched" class="error-text">
+            Total seats is required (1-100)
+          </small>
+        </div>
+
+        <!-- Available Seats -->
+        <div class="form-group">
+          <label for="availableSeats">Available Seats *</label>
+          <input
+            id="availableSeats"
+            type="number"
+            formControlName="availableSeats"
+            placeholder="e.g., 30"
+            min="0"
+            class="form-control"
+            [class.is-invalid]="availabilityForm.get('availableSeats')?.invalid && availabilityForm.get('availableSeats')?.touched">
+          <small *ngIf="availabilityForm.get('availableSeats')?.invalid && availabilityForm.get('availableSeats')?.touched" class="error-text">
+            Available seats is required (0 or more)
+          </small>
+          <small class="help-text">
+            Must be less than or equal to total seats
+          </small>
+        </div>
+
+        <!-- Pickup Time -->
+        <div class="form-group">
+          <label for="pickupTime">Pickup Time (Optional)</label>
+          <input
+            id="pickupTime"
+            type="time"
+            formControlName="pickupTime"
+            class="form-control">
+          <small class="help-text">
+            Time when the bus departs from source location
+          </small>
+        </div>
+
+        <!-- Drop Time -->
+        <div class="form-group">
+          <label for="dropTime">Drop Time (Optional)</label>
+          <input
+            id="dropTime"
+            type="time"
+            formControlName="dropTime"
+            class="form-control">
+          <small class="help-text">
+            Time when the bus arrives at destination
+          </small>
+        </div>
+
+        <!-- Journey Duration -->
+        <div class="form-group">
+          <label for="journeyDurationHours">Journey Duration (hours, Optional)</label>
+          <input
+            id="journeyDurationHours"
+            type="number"
+            formControlName="journeyDurationHours"
+            placeholder="e.g., 8.5"
+            min="0"
+            step="0.5"
+            class="form-control"
+            [class.is-invalid]="availabilityForm.get('journeyDurationHours')?.invalid && availabilityForm.get('journeyDurationHours')?.touched">
+          <small *ngIf="availabilityForm.get('journeyDurationHours')?.invalid && availabilityForm.get('journeyDurationHours')?.touched" class="error-text">
+            Invalid duration format
+          </small>
+          <small class="help-text">
+            Total journey time in hours (e.g., 8.5 for 8 hours 30 minutes)
+          </small>
+        </div>
+
+        <!-- Status -->
+        <div class="form-group">
+          <label for="isActive">Status *</label>
+          <select
+            id="isActive"
+            formControlName="isActive"
+            class="form-control">
+            <option [value]="true">Active</option>
+            <option [value]="false">Inactive</option>
+          </select>
+          <small class="help-text">
+            Only active availability records are visible to customers
+          </small>
+        </div>
+      </form>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeAvailabilityModal()">Cancel</button>
+        <button
+          class="btn btn-primary"
+          (click)="saveAvailability()"
+          [disabled]="!availabilityForm.valid || isSubmitting">
           {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Update' : 'Create') }}
         </button>
       </div>

@@ -16,6 +16,155 @@ namespace BusBookingAPI.Services
             _logger = logger;
         }
 
+        // CRUD Operations
+        public async Task<List<BusAvailabilityDto>> GetAllAvailabilitiesAsync()
+        {
+            try
+            {
+                var availabilities = await _context.BusAvailabilities
+                    .OrderByDescending(ba => ba.AvailableDate)
+                    .ToListAsync();
+
+                return availabilities.Select(MapToDto).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting all availabilities: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<BusAvailabilityDto> GetAvailabilityByIdAsync(int id)
+        {
+            try
+            {
+                var availability = await _context.BusAvailabilities.FindAsync(id);
+                if (availability == null)
+                {
+                    throw new KeyNotFoundException($"Availability with ID {id} not found");
+                }
+
+                return MapToDto(availability);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting availability by ID {id}: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<List<BusAvailabilityDto>> GetAvailabilitiesByBusAsync(int busId)
+        {
+            try
+            {
+                var availabilities = await _context.BusAvailabilities
+                    .Where(ba => ba.BusId == busId)
+                    .OrderByDescending(ba => ba.AvailableDate)
+                    .ToListAsync();
+
+                return availabilities.Select(MapToDto).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error getting availabilities for bus {busId}: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<BusAvailabilityDto> CreateAvailabilityAsync(CreateBusAvailabilityDto createDto)
+        {
+            try
+            {
+                // Verify bus exists
+                var bus = await _context.Buses.FindAsync(createDto.BusId);
+                if (bus == null)
+                {
+                    throw new KeyNotFoundException($"Bus with ID {createDto.BusId} not found");
+                }
+
+                var availability = new BusAvailability
+                {
+                    BusId = createDto.BusId,
+                    AvailableDate = createDto.AvailableDate,
+                    TotalSeats = createDto.TotalSeats,
+                    AvailableSeats = createDto.AvailableSeats,
+                    IsActive = createDto.IsActive,
+                    PickupTime = createDto.PickupTime,
+                    DropTime = createDto.DropTime,
+                    JourneyDurationHours = createDto.JourneyDurationHours,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.BusAvailabilities.Add(availability);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Created availability record {availability.Id} for bus {createDto.BusId}");
+                return MapToDto(availability);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error creating availability: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<BusAvailabilityDto> UpdateAvailabilityAsync(int id, UpdateBusAvailabilityDto updateDto)
+        {
+            try
+            {
+                var availability = await _context.BusAvailabilities.FindAsync(id);
+                if (availability == null)
+                {
+                    throw new KeyNotFoundException($"Availability with ID {id} not found");
+                }
+
+                availability.BusId = updateDto.BusId;
+                availability.AvailableDate = updateDto.AvailableDate;
+                availability.TotalSeats = updateDto.TotalSeats;
+                availability.AvailableSeats = updateDto.AvailableSeats;
+                availability.IsActive = updateDto.IsActive;
+                availability.PickupTime = updateDto.PickupTime;
+                availability.DropTime = updateDto.DropTime;
+                availability.JourneyDurationHours = updateDto.JourneyDurationHours;
+                availability.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Updated availability record {id}");
+                return MapToDto(availability);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error updating availability {id}: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task DeleteAvailabilityAsync(int id)
+        {
+            try
+            {
+                var availability = await _context.BusAvailabilities.FindAsync(id);
+                if (availability == null)
+                {
+                    throw new KeyNotFoundException($"Availability with ID {id} not found");
+                }
+
+                _context.BusAvailabilities.Remove(availability);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Deleted availability record {id}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error deleting availability {id}: {ex.Message}");
+                throw;
+            }
+        }
+
+        // Existing Methods
+
         public async Task<AvailableDatesResponse> GetAvailableDatesAsync(int busId, DateTime? startDate = null, DateTime? endDate = null)
         {
             try
@@ -366,6 +515,9 @@ namespace BusBookingAPI.Services
                 AvailableSeats = availability.AvailableSeats,
                 IsActive = availability.IsActive,
                 ScheduleId = availability.ScheduleId,
+                PickupTime = availability.PickupTime,
+                DropTime = availability.DropTime,
+                JourneyDurationHours = availability.JourneyDurationHours,
                 CreatedAt = availability.CreatedAt,
                 UpdatedAt = availability.UpdatedAt
             };
